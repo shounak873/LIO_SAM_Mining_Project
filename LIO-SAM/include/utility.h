@@ -361,5 +361,5 @@ float robustcostWeight(float r, float c, float alpha){
 	else {
     	weight = pow((r*r/(c*c*abs(alpha-2)) + 1),(alpha/2-1));}
 	return weight;
-
+}
 #endif

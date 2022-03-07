@@ -2,22 +2,22 @@
 #include "lio_sam/cloud_info.h"
 #include "lio_sam/save_map.h"
 
-// #include <gtsam/geometry/Rot3.h>
-// #include <gtsam/geometry/Pose3.h>
-// #include <gtsam/slam/PriorFactor.h>
-// #include <gtsam/slam/BetweenFactor.h>
-// #include <gtsam/navigation/GPSFactor.h>
-// #include <gtsam/navigation/ImuFactor.h>
-// #include <gtsam/navigation/CombinedImuFactor.h>
-// #include <gtsam/nonlinear/NonlinearFactorGraph.h>
-// #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
-// #include <gtsam/nonlinear/Marginals.h>
-// #include <gtsam/nonlinear/Values.h>
-// #include <gtsam/inference/Symbol.h>
-//
-// #include <gtsam/nonlinear/ISAM2.h>
-//
-// using namespace gtsam;
+#include <gtsam/geometry/Rot3.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/navigation/GPSFactor.h>
+#include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/Marginals.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/inference/Symbol.h>
+
+#include <gtsam/nonlinear/ISAM2.h>
+
+using namespace gtsam;
 
 using symbol_shorthand::X; // Pose3 (x,y,z,r,p,y)
 using symbol_shorthand::V; // Vel   (xdot,ydot,zdot)
@@ -26,6 +26,7 @@ using symbol_shorthand::G; // GPS pose
 
 #include <fstream>
 #include <iostream>
+#include <vector>
 using namespace std;
 /*
     * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
@@ -56,10 +57,10 @@ class mapOptimization : public ParamServer
 public:
 
     // gtsam
-    // NonlinearFactorGraph gtSAMgraph;
-    // Values initialEstimate;
-    // Values optimizedEstimate;
-    // ISAM2 *isam;
+    NonlinearFactorGraph gtSAMgraph;
+    Values initialEstimate;
+    Values optimizedEstimate;
+    ISAM2 *isam;
     Values isamCurrentEstimate;
     Eigen::MatrixXd poseCovariance;
 
@@ -144,8 +145,8 @@ public:
     bool aLoopIsClosed = false;
     map<int, int> loopIndexContainer; // from new to old
     vector<pair<int, int>> loopIndexQueue;
-    // vector<gtsam::Pose3> loopPoseQueue;
-    // vector<gtsam::noiseModel::Diagonal::shared_ptr> loopNoiseQueue;
+    vector<gtsam::Pose3> loopPoseQueue;
+    vector<gtsam::noiseModel::Diagonal::shared_ptr> loopNoiseQueue;
     deque<std_msgs::Float64MultiArray> loopInfoVec;
 
     nav_msgs::Path globalPath;
@@ -154,7 +155,8 @@ public:
     Eigen::Affine3f incrementalOdometryAffineFront;
     Eigen::Affine3f incrementalOdometryAffineBack;
 
-    cv::Mat residuals(laserCloudSelNum, 1, CV_32F);
+    // cv::Mat residuals(laserCloudSelNum, 1, CV_32F); // this has to be a variable length cv::mat
+    std::vector<float> resvec;
     float constTable[41][21];
     float bestalpha;
     float bestc;
@@ -327,17 +329,17 @@ public:
         return cloudOut;
     }
 
-    // gtsam::Pose3 pclPointTogtsamPose3(PointTypePose thisPoint)
-    // {
-    //     return gtsam::Pose3(gtsam::Rot3::RzRyRx(double(thisPoint.roll), double(thisPoint.pitch), double(thisPoint.yaw)),
-    //                               gtsam::Point3(double(thisPoint.x),    double(thisPoint.y),     double(thisPoint.z)));
-    // }
+    gtsam::Pose3 pclPointTogtsamPose3(PointTypePose thisPoint)
+    {
+        return gtsam::Pose3(gtsam::Rot3::RzRyRx(double(thisPoint.roll), double(thisPoint.pitch), double(thisPoint.yaw)),
+                                  gtsam::Point3(double(thisPoint.x),    double(thisPoint.y),     double(thisPoint.z)));
+    }
 
-    // gtsam::Pose3 trans2gtsamPose(float transformIn[])
-    // {
-    //     return gtsam::Pose3(gtsam::Rot3::RzRyRx(transformIn[0], transformIn[1], transformIn[2]),
-    //                               gtsam::Point3(transformIn[3], transformIn[4], transformIn[5]));
-    // }
+    gtsam::Pose3 trans2gtsamPose(float transformIn[])
+    {
+        return gtsam::Pose3(gtsam::Rot3::RzRyRx(transformIn[0], transformIn[1], transformIn[2]),
+                                  gtsam::Point3(transformIn[3], transformIn[4], transformIn[5]));
+    }
 
     Eigen::Affine3f pclPointToAffine3f(PointTypePose thisPoint)
     {
@@ -549,86 +551,86 @@ public:
             loopInfoVec.pop_front();
     }
 
-    // void performLoopClosure()
-    // {
-    //     if (cloudKeyPoses3D->points.empty() == true)
-    //         return;
-    //
-    //     mtx.lock();
-    //     *copy_cloudKeyPoses3D = *cloudKeyPoses3D;
-    //     *copy_cloudKeyPoses6D = *cloudKeyPoses6D;
-    //     mtx.unlock();
-    //
-    //     // find keys
-    //     int loopKeyCur;
-    //     int loopKeyPre;
-    //     if (detectLoopClosureExternal(&loopKeyCur, &loopKeyPre) == false)
-    //         if (detectLoopClosureDistance(&loopKeyCur, &loopKeyPre) == false)
-    //             return;
-    //
-    //     // extract cloud
-    //     pcl::PointCloud<PointType>::Ptr cureKeyframeCloud(new pcl::PointCloud<PointType>());
-    //     pcl::PointCloud<PointType>::Ptr prevKeyframeCloud(new pcl::PointCloud<PointType>());
-    //     {
-    //         loopFindNearKeyframes(cureKeyframeCloud, loopKeyCur, 0);
-    //         loopFindNearKeyframes(prevKeyframeCloud, loopKeyPre, historyKeyframeSearchNum);
-    //         if (cureKeyframeCloud->size() < 300 || prevKeyframeCloud->size() < 1000)
-    //             return;
-    //         if (pubHistoryKeyFrames.getNumSubscribers() != 0)
-    //             publishCloud(&pubHistoryKeyFrames, prevKeyframeCloud, timeLaserInfoStamp, odometryFrame);
-    //     }
-    //
-    //     // ICP Settings
-    //     static pcl::IterativeClosestPoint<PointType, PointType> icp;
-    //     icp.setMaxCorrespondenceDistance(historyKeyframeSearchRadius*2);
-    //     icp.setMaximumIterations(100);
-    //     icp.setTransformationEpsilon(1e-6);
-    //     icp.setEuclideanFitnessEpsilon(1e-6);
-    //     icp.setRANSACIterations(0);
-    //
-    //     // Align clouds
-    //     icp.setInputSource(cureKeyframeCloud);
-    //     icp.setInputTarget(prevKeyframeCloud);
-    //     pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
-    //     icp.align(*unused_result);
-    //
-    //     if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
-    //         return;
-    //
-    //     // publish corrected cloud
-    //     if (pubIcpKeyFrames.getNumSubscribers() != 0)
-    //     {
-    //         pcl::PointCloud<PointType>::Ptr closed_cloud(new pcl::PointCloud<PointType>());
-    //         pcl::transformPointCloud(*cureKeyframeCloud, *closed_cloud, icp.getFinalTransformation());
-    //         publishCloud(&pubIcpKeyFrames, closed_cloud, timeLaserInfoStamp, odometryFrame);
-    //     }
-    //
-    //     // Get pose transformation
-    //     float x, y, z, roll, pitch, yaw;
-    //     Eigen::Affine3f correctionLidarFrame;
-    //     correctionLidarFrame = icp.getFinalTransformation();
-    //     // transform from world origin to wrong pose
-    //     Eigen::Affine3f tWrong = pclPointToAffine3f(copy_cloudKeyPoses6D->points[loopKeyCur]);
-    //     // transform from world origin to corrected pose
-    //     Eigen::Affine3f tCorrect = correctionLidarFrame * tWrong;// pre-multiplying -> successive rotation about a fixed frame
-    //     pcl::getTranslationAndEulerAngles (tCorrect, x, y, z, roll, pitch, yaw);
-    //     gtsam::Pose3 poseFrom = Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(x, y, z));
-    //     gtsam::Pose3 poseTo = pclPointTogtsamPose3(copy_cloudKeyPoses6D->points[loopKeyPre]);
-    //     gtsam::Vector Vector6(6);
-    //     float noiseScore = icp.getFitnessScore();
-    //     Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore, noiseScore;
-    //     noiseModel::Diagonal::shared_ptr constraintNoise = noiseModel::Diagonal::Variances(Vector6);
-    //
-    //     // Add pose constraint
-    //     mtx.lock();
-    //     loopIndexQueue.push_back(make_pair(loopKeyCur, loopKeyPre));
-    //     loopPoseQueue.push_back(poseFrom.between(poseTo));
-    //     loopNoiseQueue.push_back(constraintNoise);
-    //     mtx.unlock();
-    //
-    //     // add loop constriant
-    //     loopIndexContainer[loopKeyCur] = loopKeyPre;
-    // }
+    void performLoopClosure()
+    {
+        if (cloudKeyPoses3D->points.empty() == true)
+            return;
+
+        mtx.lock();
+        *copy_cloudKeyPoses3D = *cloudKeyPoses3D;
+        *copy_cloudKeyPoses6D = *cloudKeyPoses6D;
+        mtx.unlock();
+
+        // find keys
+        int loopKeyCur;
+        int loopKeyPre;
+        if (detectLoopClosureExternal(&loopKeyCur, &loopKeyPre) == false)
+            if (detectLoopClosureDistance(&loopKeyCur, &loopKeyPre) == false)
+                return;
+
+        // extract cloud
+        pcl::PointCloud<PointType>::Ptr cureKeyframeCloud(new pcl::PointCloud<PointType>());
+        pcl::PointCloud<PointType>::Ptr prevKeyframeCloud(new pcl::PointCloud<PointType>());
+        {
+            loopFindNearKeyframes(cureKeyframeCloud, loopKeyCur, 0);
+            loopFindNearKeyframes(prevKeyframeCloud, loopKeyPre, historyKeyframeSearchNum);
+            if (cureKeyframeCloud->size() < 300 || prevKeyframeCloud->size() < 1000)
+                return;
+            if (pubHistoryKeyFrames.getNumSubscribers() != 0)
+                publishCloud(&pubHistoryKeyFrames, prevKeyframeCloud, timeLaserInfoStamp, odometryFrame);
+        }
+
+        // ICP Settings
+        static pcl::IterativeClosestPoint<PointType, PointType> icp;
+        icp.setMaxCorrespondenceDistance(historyKeyframeSearchRadius*2);
+        icp.setMaximumIterations(100);
+        icp.setTransformationEpsilon(1e-6);
+        icp.setEuclideanFitnessEpsilon(1e-6);
+        icp.setRANSACIterations(0);
+
+        // Align clouds
+        icp.setInputSource(cureKeyframeCloud);
+        icp.setInputTarget(prevKeyframeCloud);
+        pcl::PointCloud<PointType>::Ptr unused_result(new pcl::PointCloud<PointType>());
+        icp.align(*unused_result);
+
+        if (icp.hasConverged() == false || icp.getFitnessScore() > historyKeyframeFitnessScore)
+            return;
+
+        // publish corrected cloud
+        if (pubIcpKeyFrames.getNumSubscribers() != 0)
+        {
+            pcl::PointCloud<PointType>::Ptr closed_cloud(new pcl::PointCloud<PointType>());
+            pcl::transformPointCloud(*cureKeyframeCloud, *closed_cloud, icp.getFinalTransformation());
+            publishCloud(&pubIcpKeyFrames, closed_cloud, timeLaserInfoStamp, odometryFrame);
+        }
+
+        // Get pose transformation
+        float x, y, z, roll, pitch, yaw;
+        Eigen::Affine3f correctionLidarFrame;
+        correctionLidarFrame = icp.getFinalTransformation();
+        // transform from world origin to wrong pose
+        Eigen::Affine3f tWrong = pclPointToAffine3f(copy_cloudKeyPoses6D->points[loopKeyCur]);
+        // transform from world origin to corrected pose
+        Eigen::Affine3f tCorrect = correctionLidarFrame * tWrong;// pre-multiplying -> successive rotation about a fixed frame
+        pcl::getTranslationAndEulerAngles (tCorrect, x, y, z, roll, pitch, yaw);
+        gtsam::Pose3 poseFrom = Pose3(Rot3::RzRyRx(roll, pitch, yaw), Point3(x, y, z));
+        gtsam::Pose3 poseTo = pclPointTogtsamPose3(copy_cloudKeyPoses6D->points[loopKeyPre]);
+        gtsam::Vector Vector6(6);
+        float noiseScore = icp.getFitnessScore();
+        Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore, noiseScore;
+        noiseModel::Diagonal::shared_ptr constraintNoise = noiseModel::Diagonal::Variances(Vector6);
+
+        // Add pose constraint
+        mtx.lock();
+        loopIndexQueue.push_back(make_pair(loopKeyCur, loopKeyPre));
+        loopPoseQueue.push_back(poseFrom.between(poseTo));
+        loopNoiseQueue.push_back(constraintNoise);
+        mtx.unlock();
+
+        // add loop constriant
+        loopIndexContainer[loopKeyCur] = loopKeyPre;
+    }
 
     bool detectLoopClosureDistance(int *latestID, int *closestID)
     {
@@ -1208,13 +1210,20 @@ public:
         cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
         cv::Mat matAtWB(6, 1, CV_32F, cv::Scalar::all(0));
         cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
-        cv::Mat weights(laserCloudSelNum, laserCloudSelNum, CV_32F, cv::Scalar::all(0))
+        cv::Mat weights = cv::Mat::eye(laserCloudSelNum, laserCloudSelNum, CV_32F);
+        // cv::Mat weights(laserCloudSelNum, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
+        cv::Mat residuals(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
 
         // Calculate weights based on the residuals and current best alpha and c
-        for (int i = 0; i < laserCloudSelNum; i++){
-            weights.at<float>(i,i) = robustcostWeight(residual.at<float>(i,0), alphaB, cB)
-        }
+        // resvec will be empty for the first iteration
 
+        if(!resvec.empty()){
+            int i = 0;
+            for (auto it : resvec){
+                weights.at<float>(i,i) = robustcostWeight(it, alphaB, cB);
+                i++;
+            }
+        }
         PointType pointOri, coeff;
 
         for (int i = 0; i < laserCloudSelNum; i++) {
@@ -1252,9 +1261,9 @@ public:
 
         cv::transpose(matA, matAt);
         // added : multiplication by weight matrix
-        matAtA = matAt * weights * matA;
-        matAtB = matAt * weights * matB;
-        cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
+        matAtWA = matAt * weights * matA;
+        matAtWB = matAt * weights * matB;
+        cv::solve(matAtWA, matAtWB, matX, cv::DECOMP_QR);
 
         if (iterCount == 0) {
 
@@ -1262,7 +1271,7 @@ public:
             cv::Mat matV(6, 6, CV_32F, cv::Scalar::all(0));
             cv::Mat matV2(6, 6, CV_32F, cv::Scalar::all(0));
 
-            cv::eigen(matAtA, matE, matV);
+            cv::eigen(matAtWA, matE, matV);
             matV.copyTo(matV2);
 
             isDegenerate = false;
@@ -1304,8 +1313,11 @@ public:
                             pow(matX.at<float>(5, 0) * 100, 2));
 
         // calculate post-fit residuals at the end of each iteration
-
+        resvec.clear();
         residuals = matA*matX - matB;
+        cv::Mat flat = residuals.reshape(1, residuals.total()*residuals.channels());
+        resvec = residuals.isContinuous()? flat : flat.clone();
+
 
         if (deltaR < 0.05 && deltaT < 0.05) {
             return true; // converged
@@ -1318,7 +1330,7 @@ public:
         if (cloudKeyPoses3D->points.empty())
             return;
         // set the residuals to zero at the starting time
-        residuals = cv::Scalar::all(0);
+        // residuals = cv::Scalar::all(0);
 
         std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
                                 -1.0, -1.25, -1.50, -1,75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
@@ -1363,12 +1375,9 @@ public:
 
     			for(int ip =0; ip < lenalpha; ip++){
     				totallike = 0.0;
-                    for(int i = 0; i < residuals.rows; i++){
-                        for(int j = 0; j < residuals.cols; j++){
-                            totallike += -log(exp(-robustcost(residuals.at<float>(i,j),c[mincind], alpha[ip]))/constTable[ip][mincind]);
+                        for(auto it : resvec){
+                            totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
                         }
-                    }
-
     				likevecalpha[ip] = totallike;
     			}
 
@@ -1381,11 +1390,9 @@ public:
 
     			for(int ip2 =0; ip2 < lenc; ip2++){
     				totallike = 0.0;
-                    for(int i = 0; i < residuals.rows; i++){
-                        for(int j = 0; j < residuals.cols; j++){
-                            totallike += -log(exp(-robustcost(residuals.at<float>(i,j),c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
+                        for(auto it2 : resvec){
+                            totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
                         }
-                    }
 
     				likevecc[ip2] = totallike;
     			}
@@ -1464,121 +1471,121 @@ public:
         return true;
     }
 
-    // void addOdomFactor()
-    // {
-    //     if (cloudKeyPoses3D->points.empty())
-    //     {
-    //         noiseModel::Diagonal::shared_ptr priorNoise = noiseModel::Diagonal::Variances((Vector(6) << 1e-2, 1e-2, M_PI*M_PI, 1e8, 1e8, 1e8).finished()); // rad*rad, meter*meter
-    //         gtSAMgraph.add(PriorFactor<Pose3>(0, trans2gtsamPose(transformTobeMapped), priorNoise));
-    //         initialEstimate.insert(0, trans2gtsamPose(transformTobeMapped));
-    //     }else{
-    //         noiseModel::Diagonal::shared_ptr odometryNoise = noiseModel::Diagonal::Variances((Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished());
-    //         gtsam::Pose3 poseFrom = pclPointTogtsamPose3(cloudKeyPoses6D->points.back());
-    //         gtsam::Pose3 poseTo   = trans2gtsamPose(transformTobeMapped);
-    //         gtSAMgraph.add(BetweenFactor<Pose3>(cloudKeyPoses3D->size()-1, cloudKeyPoses3D->size(), poseFrom.between(poseTo), odometryNoise));
-    //         initialEstimate.insert(cloudKeyPoses3D->size(), poseTo);
-    //     }
-    // }
+    void addOdomFactor()
+    {
+        if (cloudKeyPoses3D->points.empty())
+        {
+            noiseModel::Diagonal::shared_ptr priorNoise = noiseModel::Diagonal::Variances((Vector(6) << 1e-2, 1e-2, M_PI*M_PI, 1e8, 1e8, 1e8).finished()); // rad*rad, meter*meter
+            gtSAMgraph.add(PriorFactor<Pose3>(0, trans2gtsamPose(transformTobeMapped), priorNoise));
+            initialEstimate.insert(0, trans2gtsamPose(transformTobeMapped));
+        }else{
+            noiseModel::Diagonal::shared_ptr odometryNoise = noiseModel::Diagonal::Variances((Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished());
+            gtsam::Pose3 poseFrom = pclPointTogtsamPose3(cloudKeyPoses6D->points.back());
+            gtsam::Pose3 poseTo   = trans2gtsamPose(transformTobeMapped);
+            gtSAMgraph.add(BetweenFactor<Pose3>(cloudKeyPoses3D->size()-1, cloudKeyPoses3D->size(), poseFrom.between(poseTo), odometryNoise));
+            initialEstimate.insert(cloudKeyPoses3D->size(), poseTo);
+        }
+    }
 
-    // void addGPSFactor()
-    // {
-    //     if (gpsQueue.empty())
-    //         return;
-    //
-    //     // wait for system initialized and settles down
-    //     if (cloudKeyPoses3D->points.empty())
-    //         return;
-    //     else
-    //     {
-    //         if (pointDistance(cloudKeyPoses3D->front(), cloudKeyPoses3D->back()) < 5.0)
-    //             return;
-    //     }
-    //
-    //     // pose covariance small, no need to correct
-    //     if (poseCovariance(3,3) < poseCovThreshold && poseCovariance(4,4) < poseCovThreshold)
-    //         return;
-    //
-    //     // last gps position
-    //     static PointType lastGPSPoint;
-    //
-    //     while (!gpsQueue.empty())
-    //     {
-    //         if (gpsQueue.front().header.stamp.toSec() < timeLaserInfoCur - 0.2)
-    //         {
-    //             // message too old
-    //             gpsQueue.pop_front();
-    //         }
-    //         else if (gpsQueue.front().header.stamp.toSec() > timeLaserInfoCur + 0.2)
-    //         {
-    //             // message too new
-    //             break;
-    //         }
-    //         else
-    //         {
-    //             nav_msgs::Odometry thisGPS = gpsQueue.front();
-    //             gpsQueue.pop_front();
-    //
-    //             // GPS too noisy, skip
-    //             float noise_x = thisGPS.pose.covariance[0];
-    //             float noise_y = thisGPS.pose.covariance[7];
-    //             float noise_z = thisGPS.pose.covariance[14];
-    //             if (noise_x > gpsCovThreshold || noise_y > gpsCovThreshold)
-    //                 continue;
-    //
-    //             float gps_x = thisGPS.pose.pose.position.x;
-    //             float gps_y = thisGPS.pose.pose.position.y;
-    //             float gps_z = thisGPS.pose.pose.position.z;
-    //             if (!useGpsElevation)
-    //             {
-    //                 gps_z = transformTobeMapped[5];
-    //                 noise_z = 0.01;
-    //             }
-    //
-    //             // GPS not properly initialized (0,0,0)
-    //             if (abs(gps_x) < 1e-6 && abs(gps_y) < 1e-6)
-    //                 continue;
-    //
-    //             // Add GPS every a few meters
-    //             PointType curGPSPoint;
-    //             curGPSPoint.x = gps_x;
-    //             curGPSPoint.y = gps_y;
-    //             curGPSPoint.z = gps_z;
-    //             if (pointDistance(curGPSPoint, lastGPSPoint) < 5.0)
-    //                 continue;
-    //             else
-    //                 lastGPSPoint = curGPSPoint;
-    //
-    //             gtsam::Vector Vector3(3);
-    //             Vector3 << max(noise_x, 1.0f), max(noise_y, 1.0f), max(noise_z, 1.0f);
-    //             noiseModel::Diagonal::shared_ptr gps_noise = noiseModel::Diagonal::Variances(Vector3);
-    //             gtsam::GPSFactor gps_factor(cloudKeyPoses3D->size(), gtsam::Point3(gps_x, gps_y, gps_z), gps_noise);
-    //             gtSAMgraph.add(gps_factor);
-    //
-    //             aLoopIsClosed = true;
-    //             break;
-    //         }
-    //     }
-    // }
+    void addGPSFactor()
+    {
+        if (gpsQueue.empty())
+            return;
 
-    // void addLoopFactor()
-    // {
-    //     if (loopIndexQueue.empty())
-    //         return;
-    //
-    //     for (int i = 0; i < (int)loopIndexQueue.size(); ++i)
-    //     {
-    //         int indexFrom = loopIndexQueue[i].first;
-    //         int indexTo = loopIndexQueue[i].second;
-    //         gtsam::Pose3 poseBetween = loopPoseQueue[i];
-    //         gtsam::noiseModel::Diagonal::shared_ptr noiseBetween = loopNoiseQueue[i];
-    //         gtSAMgraph.add(BetweenFactor<Pose3>(indexFrom, indexTo, poseBetween, noiseBetween));
-    //     }
-    //
-    //     loopIndexQueue.clear();
-    //     loopPoseQueue.clear();
-    //     loopNoiseQueue.clear();
-    //     aLoopIsClosed = true;
-    // }
+        // wait for system initialized and settles down
+        if (cloudKeyPoses3D->points.empty())
+            return;
+        else
+        {
+            if (pointDistance(cloudKeyPoses3D->front(), cloudKeyPoses3D->back()) < 5.0)
+                return;
+        }
+
+        // pose covariance small, no need to correct
+        if (poseCovariance(3,3) < poseCovThreshold && poseCovariance(4,4) < poseCovThreshold)
+            return;
+
+        // last gps position
+        static PointType lastGPSPoint;
+
+        while (!gpsQueue.empty())
+        {
+            if (gpsQueue.front().header.stamp.toSec() < timeLaserInfoCur - 0.2)
+            {
+                // message too old
+                gpsQueue.pop_front();
+            }
+            else if (gpsQueue.front().header.stamp.toSec() > timeLaserInfoCur + 0.2)
+            {
+                // message too new
+                break;
+            }
+            else
+            {
+                nav_msgs::Odometry thisGPS = gpsQueue.front();
+                gpsQueue.pop_front();
+
+                // GPS too noisy, skip
+                float noise_x = thisGPS.pose.covariance[0];
+                float noise_y = thisGPS.pose.covariance[7];
+                float noise_z = thisGPS.pose.covariance[14];
+                if (noise_x > gpsCovThreshold || noise_y > gpsCovThreshold)
+                    continue;
+
+                float gps_x = thisGPS.pose.pose.position.x;
+                float gps_y = thisGPS.pose.pose.position.y;
+                float gps_z = thisGPS.pose.pose.position.z;
+                if (!useGpsElevation)
+                {
+                    gps_z = transformTobeMapped[5];
+                    noise_z = 0.01;
+                }
+
+                // GPS not properly initialized (0,0,0)
+                if (abs(gps_x) < 1e-6 && abs(gps_y) < 1e-6)
+                    continue;
+
+                // Add GPS every a few meters
+                PointType curGPSPoint;
+                curGPSPoint.x = gps_x;
+                curGPSPoint.y = gps_y;
+                curGPSPoint.z = gps_z;
+                if (pointDistance(curGPSPoint, lastGPSPoint) < 5.0)
+                    continue;
+                else
+                    lastGPSPoint = curGPSPoint;
+
+                gtsam::Vector Vector3(3);
+                Vector3 << max(noise_x, 1.0f), max(noise_y, 1.0f), max(noise_z, 1.0f);
+                noiseModel::Diagonal::shared_ptr gps_noise = noiseModel::Diagonal::Variances(Vector3);
+                gtsam::GPSFactor gps_factor(cloudKeyPoses3D->size(), gtsam::Point3(gps_x, gps_y, gps_z), gps_noise);
+                gtSAMgraph.add(gps_factor);
+
+                aLoopIsClosed = true;
+                break;
+            }
+        }
+    }
+
+    void addLoopFactor()
+    {
+        if (loopIndexQueue.empty())
+            return;
+
+        for (int i = 0; i < (int)loopIndexQueue.size(); ++i)
+        {
+            int indexFrom = loopIndexQueue[i].first;
+            int indexTo = loopIndexQueue[i].second;
+            gtsam::Pose3 poseBetween = loopPoseQueue[i];
+            gtsam::noiseModel::Diagonal::shared_ptr noiseBetween = loopNoiseQueue[i];
+            gtSAMgraph.add(BetweenFactor<Pose3>(indexFrom, indexTo, poseBetween, noiseBetween));
+        }
+
+        loopIndexQueue.clear();
+        loopPoseQueue.clear();
+        loopNoiseQueue.clear();
+        aLoopIsClosed = true;
+    }
 
     void saveKeyFramesAndFactor()
     {

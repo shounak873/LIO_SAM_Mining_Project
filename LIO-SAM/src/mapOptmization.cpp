@@ -27,6 +27,8 @@ using symbol_shorthand::G; // GPS pose
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <string>
+#include <sstream>
 using namespace std;
 /*
     * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
@@ -162,29 +164,23 @@ public:
     float bestc;
 
 
-    mapOptimization()
+    mapOptimization(std::vector<std::vector<float>> content)
     {
         ISAM2Params parameters;
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
 
-        // Read normalising constants from the text file;
-
-        ifstream f("tablenew.txt");
         for (int i = 0; i < 41; i++){
             for (int j = 0; j < 21; j++){
-            f >> constTable[i][j];
+                constTable[i][j] = content[i][j];
+                std::cout << constTable[i][j] << " ";
             }
+            std::cout << "\n";
         }
 
-        if ((constTable[40][20] > 14.9) && (constTable[40][20] < 15.0)){
-            std::cout << "Read constants correctly!" << std::endl;
-        }
-        else {
-            std::cout << "SOMETHING WROGN WITH READING TEXT FILE !! " << std::endl;
-        }
 
+        // Read normalising constants from the text file;
 
         pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/trajectory", 1);
         pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/map_global", 1);
@@ -261,6 +257,8 @@ public:
     void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
     {
         // extract time stamp
+
+
         timeLaserInfoStamp = msgIn->header.stamp;
         timeLaserInfoCur = msgIn->header.stamp.toSec();
 
@@ -268,6 +266,8 @@ public:
         cloudInfo = *msgIn;
         pcl::fromROSMsg(msgIn->cloud_corner,  *laserCloudCornerLast);
         pcl::fromROSMsg(msgIn->cloud_surface, *laserCloudSurfLast);
+
+
 
         std::lock_guard<std::mutex> lock(mtx);
 
@@ -1851,7 +1851,58 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "lio_sam");
 
-    mapOptimization MO;
+    // float constTable[41][21];
+    // const char* in
+    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablenew.txt";
+    vector<vector<float>> content;
+    vector<float> row;
+    string line, word;
+    fstream file (fname, ios::in);
+    if(file.is_open())
+    {
+        while(getline(file, line))
+        {
+            row.clear();
+            stringstream str(line);
+            while(getline(str, word, ' '))
+                row.push_back(stof(word));
+            content.push_back(row);
+        }
+    }
+    else{
+        cout<<"Could not open the file\n";
+    }
+    // for(int i=0;i<content.size();i++)
+    // {
+    //     for(int j=0;j<content[i].size();j++)
+    //     {
+    //         cout<<content[i][j]<<" ";
+    //         MO.constTable[i][j] = content[i][j];
+    //     }
+    //     cout<<"\n";
+    // }
+    // infile.open("tablenew.txt");
+    // for (int i = 0; i < 41; i++){
+    //     for (int j = 0; j < 21; j++){
+    //         if ( !(input >> constTable[i][j]) )
+    //          {
+    //             cerr << "Error reading at " << i << ", " << j << '\n';
+    //             exit( 1 );
+    //          }
+    //          printf("%s\n", constTable[i][j]);
+    //     }
+    // }
+    //
+    // if ((constTable[40][20] > 14.9) && (constTable[40][20] < 15.0)){
+    //     std::cout << "Read constants correctly!" << std::endl;
+    // }
+    // else {
+    //     std::cout << "SOMETHING WRONg WITH READING TEXT FILE !! " << std::endl;
+    // }
+    // input.close();
+
+    // MO.constTable = constTable;
+    mapOptimization MO(content);
 
     ROS_INFO("\033[1;32m----> Map Optimization Started.\033[0m");
 

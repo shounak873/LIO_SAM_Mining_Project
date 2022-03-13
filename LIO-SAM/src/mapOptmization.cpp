@@ -1,6 +1,7 @@
 #include "utility.h"
 #include "lio_sam/cloud_info.h"
 #include "lio_sam/save_map.h"
+#include "lio_sam/dist.h"
 
 // #include <gtsam/geometry/Rot3.h>
 // #include <gtsam/geometry/Pose3.h>
@@ -72,6 +73,7 @@ public:
     ros::Publisher pubLaserOdometryIncremental;
     ros::Publisher pubKeyPoses;
     ros::Publisher pubPath;
+    ros::Publisher pubDistInfo;
 
     ros::Publisher pubHistoryKeyFrames;
     ros::Publisher pubIcpKeyFrames;
@@ -161,6 +163,7 @@ public:
     Eigen::Affine3f incrementalOdometryAffineBack;
 
     // cv::Mat residuals(laserCloudSelNum, 1, CV_32F); // this has to be a variable length cv::mat
+    lio_sam::dist dist_info;
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
@@ -192,6 +195,7 @@ public:
         pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> ("lio_sam/mapping/odometry", 1);
         pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> ("lio_sam/mapping/odometry_incremental", 1);
         pubPath                     = nh.advertise<nav_msgs::Path>("lio_sam/mapping/path", 1);
+        pubDistInfo = nh.advertise<lio_sam::dist> ("lio_sam/mapping/dist_info", 1); // this will publish best c and alpha based on time
 
         subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         // subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
@@ -1459,8 +1463,8 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             std::cout << " optimization loop started .. " << std::endl;
-            for(int j = 0; j < 5; j++){
-                for (int iterCount = 0; iterCount < 10; iterCount++)
+            for(int j = 0; j < 10; j++){
+                for (int iterCount = 0; iterCount < 20; iterCount++)
                 {
                     laserCloudOri->clear();
                     coeffSel->clear();
@@ -1476,45 +1480,47 @@ public:
                     }
                 }
 
-                std::fill(likevecalpha.begin(), likevecalpha.end(), 0.0);
+                if(j < 9){
+                    std::fill(likevecalpha.begin(), likevecalpha.end(), 0.0);
 
-                // remove negative elements
-                std::vector<float> resvecCornerCopy(resvecCorner);
-                resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( int i ){ return i < 0; } ), resvecCornerCopy.end() );
+                    // remove negative elements
+                    std::vector<float> resvecCornerCopy(resvecCorner);
+                    resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( int i ){ return i < 0; } ), resvecCornerCopy.end() );
 
-                std::vector<float> resvecSurfCopy(resvecSurf);
-                resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( int i ){ return i < 0; } ), resvecSurfCopy.end() );
+                    std::vector<float> resvecSurfCopy(resvecSurf);
+                    resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( int i ){ return i < 0; } ), resvecSurfCopy.end() );
 
-                std::vector<float> resvec(resvecCornerCopy);
-                resvec.insert(resvec.end(), resvecSurfCopy.begin(), resvecSurfCopy.end());
+                    std::vector<float> resvec(resvecCornerCopy);
+                    resvec.insert(resvec.end(), resvecSurfCopy.begin(), resvecSurfCopy.end());
 
-    			for(int ip =0; ip < lenalpha; ip++){
-    				totallike = 0.0;
-                        for(auto it : resvec){
-                            totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
-                        }
-    				likevecalpha[ip] = totallike;
-    			}
+        			for(int ip =0; ip < lenalpha; ip++){
+        				totallike = 0.0;
+                            for(auto it : resvec){
+                                totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
+                            }
+        				likevecalpha[ip] = totallike;
+        			}
 
-                minalphaind = std::min_element(likevecalpha.begin(),likevecalpha.end()) - likevecalpha.begin();
-    			std::cout << "Best alpha -- " << alpha[minalphaind] << endl;
-    			bestalpha = alpha[minalphaind];
+                    minalphaind = std::min_element(likevecalpha.begin(),likevecalpha.end()) - likevecalpha.begin();
+        			// std::cout << "Best alpha -- " << alpha[minalphaind] << endl;
+        			bestalpha = alpha[minalphaind];
 
 
-                std::fill(likevecc.begin(), likevecc.end(), 0.0);
+                    std::fill(likevecc.begin(), likevecc.end(), 0.0);
 
-    			for(int ip2 =0; ip2 < lenc; ip2++){
-    				totallike = 0.0;
-                        for(auto it2 : resvec){
-                            totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-                        }
+        			for(int ip2 =0; ip2 < lenc; ip2++){
+        				totallike = 0.0;
+                            for(auto it2 : resvec){
+                                totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
+                            }
 
-    				likevecc[ip2] = totallike;
-    			}
+        				likevecc[ip2] = totallike;
+        			}
 
-                mincind = std::min_element(likevecc.begin(),likevecc.end()) - likevecc.begin();
-    			std::cout << "Best c -- " << alpha[mincind] << endl;
-    			bestc = alpha[mincind];
+                    mincind = std::min_element(likevecc.begin(),likevecc.end()) - likevecc.begin();
+        			// std::cout << "Best c -- " << alpha[mincind] << endl;
+        			bestc = alpha[mincind];
+                }
 
             }
             transformUpdate();
@@ -1871,6 +1877,11 @@ public:
         laserOdometryROS.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         pubLaserOdometryGlobal.publish(laserOdometryROS);
 
+        //publish dist info
+        dist_info.header.stamp = timeLaserInfoStamp;
+        dist_info.bestc = bestc;
+        dist_info.bestalpha = bestalpha;
+        pubDistInfo.publish(dist_info);
         // Publish TF
         static tf::TransformBroadcaster br;
         tf::Transform t_odom_to_lidar = tf::Transform(tf::createQuaternionFromRPY(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]),

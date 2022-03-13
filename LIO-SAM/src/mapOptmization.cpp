@@ -195,7 +195,7 @@ public:
         pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> ("lio_sam/mapping/odometry", 1);
         pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> ("lio_sam/mapping/odometry_incremental", 1);
         pubPath                     = nh.advertise<nav_msgs::Path>("lio_sam/mapping/path", 1);
-        pubDistInfo = nh.advertise<lio_sam::dist> ("lio_sam/mapping/dist_info", 1); // this will publish best c and alpha based on time
+        pubDistInfo                 = nh.advertise<lio_sam::dist>("lio_sam/mapping/dist_info", 1); // this will publish best c and alpha based on time
 
         subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         // subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());

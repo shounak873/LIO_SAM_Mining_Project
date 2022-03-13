@@ -1485,10 +1485,10 @@ public:
 
                     // remove negative elements
                     std::vector<float> resvecCornerCopy(resvecCorner);
-                    resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( int i ){ return i < 0; } ), resvecCornerCopy.end() );
+                    resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( int i ){ return i < -100.0; } ), resvecCornerCopy.end() );
 
                     std::vector<float> resvecSurfCopy(resvecSurf);
-                    resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( int i ){ return i < 0; } ), resvecSurfCopy.end() );
+                    resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( int i ){ return i < -100.0; } ), resvecSurfCopy.end() );
 
                     std::vector<float> resvec(resvecCornerCopy);
                     resvec.insert(resvec.end(), resvecSurfCopy.begin(), resvecSurfCopy.end());

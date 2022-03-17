@@ -13,8 +13,8 @@ lio_sam:
   mapFrame: "map"
 
   # GPS Settings
-  useImuHeadingInitialization: false           # if using GPS data, set to "true"
-  useGpsElevation: false                      # if GPS elevation is bad, set to "false"
+  useImuHeadingInitialization: true           # if using GPS data, set to "true"
+  useGpsElevation: true                      # if GPS elevation is bad, set to "false"
   gpsCovThreshold: 2.0                        # m^2, threshold for using GPS data
   poseCovThreshold: 25.0                      # m^2, threshold for using GPS data
 
@@ -109,7 +109,7 @@ navsat:
   delay: 0.0
   magnetic_declination_radians: 0
   yaw_offset: 0
-  zero_altitude: true
+  zero_altitude: false
   broadcast_utm_transform: false
   broadcast_utm_transform_as_parent_frame: false
   publish_filtered_gps: false

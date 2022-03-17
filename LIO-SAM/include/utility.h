@@ -164,8 +164,8 @@ public:
         nh.param<std::string>("lio_sam/odometryFrame", odometryFrame, "odom");
         nh.param<std::string>("lio_sam/mapFrame", mapFrame, "map");
 
-        nh.param<bool>("lio_sam/useImuHeadingInitialization", useImuHeadingInitialization, false);
-        nh.param<bool>("lio_sam/useGpsElevation", useGpsElevation, false);
+        nh.param<bool>("lio_sam/useImuHeadingInitialization", useImuHeadingInitialization, true);
+        nh.param<bool>("lio_sam/useGpsElevation", useGpsElevation, true);
         nh.param<float>("lio_sam/gpsCovThreshold", gpsCovThreshold, 2.0);
         nh.param<float>("lio_sam/poseCovThreshold", poseCovThreshold, 25.0);
 

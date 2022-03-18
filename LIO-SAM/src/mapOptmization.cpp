@@ -168,8 +168,8 @@ public:
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
     float constTable[41][21];
-    float bestalpha;
-    float bestc;
+    float bestalpha = 2.0;
+    float bestc = 1.0;
 
 
     mapOptimization(std::vector<std::vector<float>> content)
@@ -1010,12 +1010,12 @@ public:
         if (cloudKeyPoses3D->points.empty() == true)
             return;
 
-        // if (loopClosureEnableFlag == true)
-        // {
-        //     extractForLoopClosure();
-        // } else {
-        //     extractNearby();
-        // }
+        if (loopClosureEnableFlag == true)
+        {
+            extractForLoopClosure();
+        } else {
+            extractNearby();
+        }
 
         extractNearby();
     }
@@ -1278,24 +1278,24 @@ public:
 
         // std::cout << "length of weights diagonal " << laserCloudSelNum << std::endl;
 
-        // float thr = 0.0;
-        // int ind = 0;
-        // if ( std::any_of(resvecCorner.begin(), resvecCorner.end(),[thr](float i){return i > thr;})){
-        //     for(int i=0; i < laserCloudCornerLastDSNum; i++){
-        //         if ((resvecCorner[i] > -100.0) && (laserCloudCornerIndexFlag[i] == true)){
-        //             // only if the points from the last iteration match with the current iteration
-        //             weights.at<float>(ind,ind) = robustcostWeight(resvecCorner[i], cB, alphaB);
-        //         }
-        //         ind++;
-        //     }
-        //     for(int i=0; i < laserCloudSurfLastDSNum; i++){
-        //         if ((resvecSurf[i] > -100.0) && (laserCloudSurfIndexFlag[i] == true) &&(ind<laserCloudSelNum)){
-        //             // only if the points from the last iteration match with the current iteration
-        //             weights.at<float>(ind,ind) = robustcostWeight(resvecSurf[i], cB, alphaB);
-        //         }
-        //         ind++;
-        //     }
-        // }
+        float thr = 0.0;
+        int ind = 0;
+        if ( std::any_of(resvecCorner.begin(), resvecCorner.end(),[thr](float i){return i > thr;})){
+            for(int i=0; i < laserCloudCornerLastDSNum; i++){
+                if ((resvecCorner[i] > -100.0) && (laserCloudCornerIndexFlag[i] == true)){
+                    // only if the points from the last iteration match with the current iteration
+                    weights.at<float>(ind,ind) = robustcostWeight(resvecCorner[i], cB, alphaB);
+                }
+                ind++;
+            }
+            for(int i=0; i < laserCloudSurfLastDSNum; i++){
+                if ((resvecSurf[i] > -100.0) && (laserCloudSurfIndexFlag[i] == true) &&(ind<laserCloudSelNum)){
+                    // only if the points from the last iteration match with the current iteration
+                    weights.at<float>(ind,ind) = robustcostWeight(resvecSurf[i], cB, alphaB);
+                }
+                ind++;
+            }
+        }
 
         PointType pointOri, coeff;
 
@@ -1391,25 +1391,25 @@ public:
         // cv::Mat flat = residuals.reshape(1, residuals.total()*residuals.channels());
         // resvec = residuals.isContinuous()? flat : flat.clone();
 
-        // std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
-        // std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
-        //
-        // ind = 0;
-        // for (int i = 0; i < laserCloudCornerLastDSNum; i++){
-        //     if (laserCloudCornerIndexFlag[i] == true){
-        //         resvecCorner[i] = residuals.at<float>(ind,0);
-        //         ind++;
-        //     }
-        // }
-        // for (int i = 0; i < laserCloudSurfLastDSNum; i++){
-        //     if (laserCloudSurfIndexFlag[i] == true){
-        //         resvecSurf[i] = residuals.at<float>(ind,0);
-        //         ind++;
-        //     }
-        // }
-        // if(laserCloudSelNum == ind){
-        //     std::cout << " RESIDUALS ADDED CORRECTLY! .. " << std::endl;
-        // }
+        std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
+        std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
+
+        ind = 0;
+        for (int i = 0; i < laserCloudCornerLastDSNum; i++){
+            if (laserCloudCornerIndexFlag[i] == true){
+                resvecCorner[i] = residuals.at<float>(ind,0);
+                ind++;
+            }
+        }
+        for (int i = 0; i < laserCloudSurfLastDSNum; i++){
+            if (laserCloudSurfIndexFlag[i] == true){
+                resvecSurf[i] = residuals.at<float>(ind,0);
+                ind++;
+            }
+        }
+        if(laserCloudSelNum == ind){
+            // std::cout << " RESIDUALS ADDED CORRECTLY! .. " << std::endl;
+        }
 
 
         // std::cout << "size of residual vector just after QR " << resvec.size() << std::endl;
@@ -1464,74 +1464,78 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
-            // for(int j = 0; j < 5; j++){
-            for (int iterCount = 0; iterCount < 30; iterCount++)
-            {
-                laserCloudOri->clear();
-                coeffSel->clear();
+            for(int j = 0; j < 5; j++){
+                for (int iterCount = 0; iterCount < 5; iterCount++)
+                {
+                    laserCloudOri->clear();
+                    coeffSel->clear();
 
-                cornerOptimization();
-                surfOptimization();
+                    cornerOptimization();
+                    surfOptimization();
 
-                combineOptimizationCoeffs();
+                    combineOptimizationCoeffs();
 
-                if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
-                    std::cout << " converged with itercount .. "  << iterCount << std::endl;
-                    converged = true;
-                    break;
+                    if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
+                        // std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                        converged = true;
+                        break;
+                    }
                 }
-            }
-            if (converged != true){
-                std::cout << " Ran all 30 iterations  " << std::endl;
-            }
+                if (converged != true){
+                    // std::cout << " Ran all inner iterations  " << std::endl;
+                }
 
-            //     if(j < 4){
-            //         std::fill(likevecalpha.begin(), likevecalpha.end(), 0.0);
-            //
-            //         // remove negative elements
-            //         // std::vector<float> resvecCornerCopy(resvecCorner);
-            //         // resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( float i ){ return i < -100.0; } ), resvecCornerCopy.end() );
-            //         //
-            //         // std::vector<float> resvecSurfCopy(resvecSurf);
-            //         // resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( float i ){ return i < -100.0; } ), resvecSurfCopy.end() );
-            //         resvec.clear();
-            //         resvec = resvecCorner;
-            //         resvec.insert(resvec.end(), resvecSurf.begin(), resvecSurf.end());
-            //
-        	// 		for(int ip =0; ip < lenalpha; ip++){
-        	// 			totallike = 0.0;
-            //                 for(auto it : resvec){
-            //                     if (it > -100.0){
-            //                         totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
-            //                     }
-            //                 }
-        	// 			likevecalpha[ip] = totallike;
-        	// 		}
-            //
-            //         minalphaind = std::min_element(likevecalpha.begin(),likevecalpha.end()) - likevecalpha.begin();
-        	// 		// std::cout << "Best alpha -- " << alpha[minalphaind] << endl;
-        	// 		bestalpha = alpha[minalphaind];
-            //
-            //
-            //         std::fill(likevecc.begin(), likevecc.end(), 0.0);
-            //
-        	// 		for(int ip2 =0; ip2 < lenc; ip2++){
-        	// 			totallike = 0.0;
-            //                 for(auto it2 : resvec){
-            //                     if(it2 > -100.0){
-            //                         totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-            //                     }
-            //                 }
-            //
-        	// 			likevecc[ip2] = totallike;
-        	// 		}
-            //
-            //         mincind = std::min_element(likevecc.begin(),likevecc.end()) - likevecc.begin();
-        	// 		// std::cout << "Best c -- " << alpha[mincind] << endl;
-        	// 		bestc = c[mincind];
-            //     }
-            //
-            // }
+                if(j < 4){
+                    std::fill(likevecalpha.begin(), likevecalpha.end(), 0.0);
+
+                    // remove negative elements
+                    // std::vector<float> resvecCornerCopy(resvecCorner);
+                    // resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( float i ){ return i < -100.0; } ), resvecCornerCopy.end() );
+                    //
+                    // std::vector<float> resvecSurfCopy(resvecSurf);
+                    // resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( float i ){ return i < -100.0; } ), resvecSurfCopy.end() );
+                    resvec.clear();
+                    resvec = resvecCorner;
+                    resvec.insert(resvec.end(), resvecSurf.begin(), resvecSurf.end());
+
+        			for(int ip =0; ip < lenalpha; ip++){
+        				totallike = 0.0;
+                            for(auto it : resvec){
+                                if (it > -100.0){
+                                    totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
+                                }
+                            }
+        				likevecalpha[ip] = totallike;
+        			}
+
+                    minalphaind = std::min_element(likevecalpha.begin(),likevecalpha.end()) - likevecalpha.begin();
+        			// std::cout << "Best alpha -- " << alpha[minalphaind] << endl;
+        			bestalpha = alpha[minalphaind];
+
+
+                    std::fill(likevecc.begin(), likevecc.end(), 0.0);
+
+        			for(int ip2 =0; ip2 < lenc; ip2++){
+        				totallike = 0.0;
+                            for(auto it2 : resvec){
+                                if(it2 > -100.0){
+                                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
+                                }
+                            }
+
+        				likevecc[ip2] = totallike;
+        			}
+
+                    mincind = std::min_element(likevecc.begin(),likevecc.end()) - likevecc.begin();
+        			// std::cout << "Best c -- " << alpha[mincind] << endl;
+        			bestc = c[mincind];
+                }
+                else{
+                    std::cout << " best alpha index " << minalphaind << std::endl;
+                    std::cout << " best c index " << mincind << std::endl;
+                }
+
+            }
             transformUpdate();
         } else {
             ROS_WARN("Not enough features! Only %d edge and %d planar features available.", laserCloudCornerLastDSNum, laserCloudSurfLastDSNum);
@@ -1758,8 +1762,8 @@ public:
 
         isamCurrentEstimate = isam->calculateEstimate();
         latestEstimate = isamCurrentEstimate.at<Pose3>(isamCurrentEstimate.size()-1);
-        cout << "****************************************************" << endl;
-        isamCurrentEstimate.print("Current estimate: ");
+        // cout << "****************************************************" << endl;
+        // isamCurrentEstimate.print("Current estimate: ");
 
         thisPose3D.x = latestEstimate.translation().x();
         thisPose3D.y = latestEstimate.translation().y();
@@ -1798,9 +1802,9 @@ public:
         // std::cout << "Added keypose 3D translation " << transformTobeMapped[3] << ", " << transformTobeMapped[4] << " , " << transformTobeMapped[5] << std::endl;
         // std::cout << "Added keypose 3D rotation " << transformTobeMapped[0] << ", " << transformTobeMapped[1] << " , " << transformTobeMapped[2] << std::endl;
 
-        cout << "****************************************************" << endl;
-        cout << "Pose covariance:" << endl;
-        cout << isam->marginalCovariance(isamCurrentEstimate.size()-1) << endl << endl;
+        // cout << "****************************************************" << endl;
+        // cout << "Pose covariance:" << endl;
+        // cout << isam->marginalCovariance(isamCurrentEstimate.size()-1) << endl << endl;
         poseCovariance = isam->marginalCovariance(isamCurrentEstimate.size()-1);
 
         // save updated transform
@@ -1889,6 +1893,10 @@ public:
         pubLaserOdometryGlobal.publish(laserOdometryROS);
 
         //publish dist info
+        dist_info.header.stamp = timeLaserInfoStamp;
+        dist_info.bestalpha = bestalpha;
+        dist_info.bestc = bestc;
+        pubDistInfo.publish(dist_info);
 
         // Publish TF
         static tf::TransformBroadcaster br;

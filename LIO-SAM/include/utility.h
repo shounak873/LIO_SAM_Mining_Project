@@ -345,22 +345,22 @@ float robustcost(float r, float c, float alpha){
 	else if (alpha == 0.0){
     	return log(0.5*pow(r/c,2) + 1);}
 	else if (alpha < -1000.0){
-    	return 1 - exp(0.5*pow(r/c,2));}
+    	return 1 - exp(-0.5*pow(r/c,2));}
 	else {
-    	return (abs(alpha-2)/alpha)*pow(r*r/(c*c*abs(alpha-2)) + 1,(alpha/2)-1);}
+    	return (abs(alpha-2)/alpha)*(pow(r*r/(c*c*abs(alpha-2)) + 1,(alpha/2))-1);}
 
 }
 float robustcostWeight(float r, float c, float alpha){
 	float weight;
     if(std::abs(r) <= 10){
     	if (alpha == 2){
-        	weight = 1;}
+        	weight = 1/(c*c);}
     	else if (alpha == 0){
-        	weight = 2*c*c/(r*r + 2*c*c);}
+        	weight = 2/(r*r + 2*c*c);}
     	else if (alpha < -1000){
-        	weight = exp(-0.5*(r*r/c*c));}
+        	weight = exp(-0.5*(r*r/c*c))/(c*c);}
     	else {
-        	weight = pow((r*r/(c*c*abs(alpha-2)) + 1),(alpha/2-1));}
+        	weight = pow((r*r/(c*c*abs(alpha-2)) + 1),(alpha/2-1))/(c*c);}
     }
     else{
         weight = 0.00001;

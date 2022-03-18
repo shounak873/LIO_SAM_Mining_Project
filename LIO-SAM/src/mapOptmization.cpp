@@ -1010,12 +1010,12 @@ public:
         if (cloudKeyPoses3D->points.empty() == true)
             return;
 
-        // if (loopClosureEnableFlag == true)
-        // {
-        //     extractForLoopClosure();
-        // } else {
-        //     extractNearby();
-        // }
+        if (loopClosureEnableFlag == true)
+        {
+            extractForLoopClosure();
+        } else {
+            extractNearby();
+        }
 
         extractNearby();
     }

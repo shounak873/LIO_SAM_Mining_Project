@@ -31,6 +31,7 @@ using symbol_shorthand::B; // Bias  (ax,ay,az,gx,gy,gz)
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <cstdlib>
 using namespace std;
 /*
     * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
@@ -113,8 +114,6 @@ public:
     std::vector<PointType> laserCloudOriSurfVec; // surf point holder for parallel computation
     std::vector<PointType> coeffSelSurfVec;
     std::vector<bool> laserCloudOriSurfFlag;
-    std::vector<bool> laserCloudCornerIndexFlag; // to keep track of corner residuals
-    std::vector<bool> laserCloudSurfIndexFlag; // to keep track of surf residuals
 
     map<int, pair<pcl::PointCloud<PointType>, pcl::PointCloud<PointType>>> laserCloudMapContainer;
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMap;
@@ -168,8 +167,12 @@ public:
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
     float constTable[41][21];
-    float bestalpha = 2.0;
-    float bestc = 1.0;
+    float bestalpha;
+    float bestc;
+    bool sparseFrame;
+
+    int minalphaind = 0;
+    int mincind = 0;
 
 
     mapOptimization(std::vector<std::vector<float>> content)
@@ -243,16 +246,17 @@ public:
         laserCloudOriSurfVec.resize(N_SCAN * Horizon_SCAN);
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
-        laserCloudCornerIndexFlag.resize(N_SCAN * Horizon_SCAN);
-        laserCloudSurfIndexFlag.resize(N_SCAN * Horizon_SCAN);
+        // laserCloudCornerIndexFlag.resize(N_SCAN * Horizon_SCAN);
+        // laserCloudSurfIndexFlag.resize(N_SCAN * Horizon_SCAN);
         resvecCorner.resize(N_SCAN * Horizon_SCAN);
         resvecSurf.resize(N_SCAN * Horizon_SCAN);
+        // resvec.resize(2*N_SCAN * Horizon_SCAN);
 
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
-        std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-        std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
+        // std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
+        // std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
 
         laserCloudCornerFromMap.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
@@ -1044,6 +1048,7 @@ public:
     void cornerOptimization()
     {
         // std::cout << "starting corner optimization .. " << std::endl;
+
         updatePointAssociateToMap();
 
         #pragma omp parallel for num_threads(numberOfCores)
@@ -1115,7 +1120,9 @@ public:
                     float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
                                + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
-                    float ld2 = a012 / l12;
+                    float ld2 = a012 / l12;  // this is the distance between edge/corner features
+
+                    float cornerDist = ld2; // equation 10 in LIO-SAM paper
 
                     float s = 1 - 0.9 * fabs(ld2);
 
@@ -1130,6 +1137,7 @@ public:
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                         laserCloudCornerIndexFlag[i] = true;
+                        resvecCorner[i] = cornerDist;
                     }
                 }
             }
@@ -1198,12 +1206,41 @@ public:
                     coeff.z = s * pc;
                     coeff.intensity = s * pd2;
 
+                    //calculate distance between surface features
+                    float xs = pointSel.x;
+                    float ys = pointSel.y;
+                    float zs = pointSel.z;
+
+                    float x0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].x;
+                    float y0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].y;
+                    float z0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].z;
+
+                    float x1 = laserCloudSurfFromMapDS->points[pointSearchInd[1]].x;
+                    float y1 = laserCloudSurfFromMapDS->points[pointSearchInd[1]].y;
+                    float z1 = laserCloudSurfFromMapDS->points[pointSearchInd[1]].z;
+
+                    float x2 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].x;
+                    float y2 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].y;
+                    float z2 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].z;
+
+                    float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                                    + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+                                    + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
+
+                    float a022 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                                    + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+                                    + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
+                                    + (xs - x0)*(xs -x0) + (ys - y0)*(ys - y0) + (zs - z0)*(zs - z0));
+
+                    float surfDist = a022 / a012; // equation 11 in LIO-SAM paper
+
                     if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                         laserCloudSurfIndexFlag[i] = true;
+                        resvecSurf[i] = surfDist;
                     }
                 }
             }
@@ -1218,6 +1255,7 @@ public:
             if (laserCloudOriCornerFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriCornerVec[i]);
                 coeffSel->push_back(coeffSelCornerVec[i]);
+                resvec.push_back(resvecCorner[i]);
             }
         }
         // combine surf coeffs
@@ -1225,15 +1263,13 @@ public:
             if (laserCloudOriSurfFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriSurfVec[i]);
                 coeffSel->push_back(coeffSelSurfVec[i]);
+                resvec.push_back(resvecSurf[i]);
             }
         }
-        // std::cout << "Coeffsel size " << coeffSel->size() << std::endl;
-        // std::cout << "laserCloudOri size " << laserCloudOri->size() << std::endl;
-        // reset flag for next iteration
+
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
-        // std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-        // std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
+
     }
 
     bool LMOptimization(int iterCount, float alphaB, float cB)
@@ -1260,6 +1296,9 @@ public:
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
             std::cout << "not enough features .. not doing NLS " << std::endl;
+            // resetting indexes in case this returns false
+            std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
+            std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
             return false;
         }
 
@@ -1270,32 +1309,7 @@ public:
         cv::Mat matAtWB(6, 1, CV_32F, cv::Scalar::all(0));
         cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
         cv::Mat weights = cv::Mat::eye(laserCloudSelNum, laserCloudSelNum, CV_32F);
-        // cv::Mat weights(laserCloudSelNum, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
-        cv::Mat residuals(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
 
-        // Calculate weights based on the residuals and current best alpha and c
-        // resvec will be empty for the first iteration
-
-        // std::cout << "length of weights diagonal " << laserCloudSelNum << std::endl;
-
-        float thr = 0.0;
-        int ind = 0;
-        if ( std::any_of(resvecCorner.begin(), resvecCorner.end(),[thr](float i){return i > thr;})){
-            for(int i=0; i < laserCloudCornerLastDSNum; i++){
-                if ((resvecCorner[i] > -100.0) && (laserCloudCornerIndexFlag[i] == true)){
-                    // only if the points from the last iteration match with the current iteration
-                    weights.at<float>(ind,ind) = robustcostWeight(resvecCorner[i], cB, alphaB);
-                }
-                ind++;
-            }
-            for(int i=0; i < laserCloudSurfLastDSNum; i++){
-                if ((resvecSurf[i] > -100.0) && (laserCloudSurfIndexFlag[i] == true) &&(ind<laserCloudSelNum)){
-                    // only if the points from the last iteration match with the current iteration
-                    weights.at<float>(ind,ind) = robustcostWeight(resvecSurf[i], cB, alphaB);
-                }
-                ind++;
-            }
-        }
 
         PointType pointOri, coeff;
 
@@ -1330,6 +1344,8 @@ public:
             matA.at<float>(i, 4) = coeff.x;
             matA.at<float>(i, 5) = coeff.y;
             matB.at<float>(i, 0) = -coeff.intensity;
+
+            weights.at<float>(i,i) = robustcostWeight(resvec[i], cB, alphaB);
         }
 
         cv::transpose(matA, matAt);
@@ -1385,42 +1401,6 @@ public:
                             pow(matX.at<float>(4, 0) * 100, 2) +
                             pow(matX.at<float>(5, 0) * 100, 2));
 
-        // calculate post-fit residuals at the end of each iteration
-
-        residuals = matA*matX - matB;
-        // cv::Mat flat = residuals.reshape(1, residuals.total()*residuals.channels());
-        // resvec = residuals.isContinuous()? flat : flat.clone();
-
-        std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
-
-        ind = 0;
-        for (int i = 0; i < laserCloudCornerLastDSNum; i++){
-            if (laserCloudCornerIndexFlag[i] == true){
-                resvecCorner[i] = residuals.at<float>(ind,0);
-                ind++;
-            }
-        }
-        for (int i = 0; i < laserCloudSurfLastDSNum; i++){
-            if (laserCloudSurfIndexFlag[i] == true){
-                resvecSurf[i] = residuals.at<float>(ind,0);
-                ind++;
-            }
-        }
-        if(laserCloudSelNum == ind){
-            // std::cout << " RESIDUALS ADDED CORRECTLY! .. " << std::endl;
-        }
-
-
-        // std::cout << "size of residual vector just after QR " << resvec.size() << std::endl;
-        // int minresind = std::min_element(resvec.begin(),resvec.end()) - resvec.begin();
-        // int maxresind = std::max_element(resvec.begin(),resvec.end()) - resvec.begin();
-        // std::cout << "Maximum res is " << resvec[maxresind] << " , " << " Minimum res is " << resvec[minresind] << std::endl;
-
-
-        std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-        std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
-
 
         if (deltaR < 0.05 && deltaT < 0.05) {
             return true; // converged
@@ -1435,11 +1415,10 @@ public:
             // std::cout << "Empty key pose vector in scan2MapOptimization " <<std::endl;
             return;
         }
-        // set the residuals to zero at the starting time
-        // residuals = cv::Scalar::all(0);
 
         std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
         std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
+        resvec.clear();
 
         std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
                                 -1.0, -1.25, -1.50, -1,75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
@@ -1449,95 +1428,33 @@ public:
     	std::vector<float> c{1.0, 1.25, 1.50, 1,75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
                             4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
 
-        int lenalpha = 41;
-        int lenc = 21;
-
-        float totallike;
-    	std::vector<float> likevecalpha(41, 0.0);
-    	std::vector<float> likevecc(21, 0.0);
-
-        int mincind = 0;
-        int minalphaind = 0;
-        bool converged = false;
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
-            for(int j = 0; j < 5; j++){
-                for (int iterCount = 0; iterCount < 5; iterCount++)
-                {
-                    laserCloudOri->clear();
-                    coeffSel->clear();
 
-                    cornerOptimization();
-                    surfOptimization();
+            for (int iterCount = 0; iterCount < 30; iterCount++)
+            {
+                laserCloudOri->clear();
+                coeffSel->clear();
 
-                    combineOptimizationCoeffs();
+                cornerOptimization();
+                surfOptimization();
 
-                    if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
-                        // std::cout << " converged with itercount .. "  << iterCount << std::endl;
-                        converged = true;
-                        break;
-                    }
+                combineOptimizationCoeffs();
+
+                selectBest(resvec, alpha, c);
+
+                if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
+                    std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                    break;
                 }
-                if (converged != true){
-                    // std::cout << " Ran all inner iterations  " << std::endl;
-                }
-
-                if(j < 4){
-                    std::fill(likevecalpha.begin(), likevecalpha.end(), 0.0);
-
-                    // remove negative elements
-                    // std::vector<float> resvecCornerCopy(resvecCorner);
-                    // resvecCornerCopy.erase( std::remove_if(resvecCornerCopy.begin(), resvecCornerCopy.end(), []( float i ){ return i < -100.0; } ), resvecCornerCopy.end() );
-                    //
-                    // std::vector<float> resvecSurfCopy(resvecSurf);
-                    // resvecSurfCopy.erase( std::remove_if( resvecSurfCopy.begin(), resvecSurfCopy.end(), []( float i ){ return i < -100.0; } ), resvecSurfCopy.end() );
-                    resvec.clear();
-                    resvec = resvecCorner;
-                    resvec.insert(resvec.end(), resvecSurf.begin(), resvecSurf.end());
-
-        			for(int ip =0; ip < lenalpha; ip++){
-        				totallike = 0.0;
-                            for(auto it : resvec){
-                                if (it > -100.0){
-                                    totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
-                                }
-                            }
-        				likevecalpha[ip] = totallike;
-        			}
-
-                    minalphaind = std::min_element(likevecalpha.begin(),likevecalpha.end()) - likevecalpha.begin();
-        			// std::cout << "Best alpha -- " << alpha[minalphaind] << endl;
-        			bestalpha = alpha[minalphaind];
-
-
-                    std::fill(likevecc.begin(), likevecc.end(), 0.0);
-
-        			for(int ip2 =0; ip2 < lenc; ip2++){
-        				totallike = 0.0;
-                            for(auto it2 : resvec){
-                                if(it2 > -100.0){
-                                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-                                }
-                            }
-
-        				likevecc[ip2] = totallike;
-        			}
-
-                    mincind = std::min_element(likevecc.begin(),likevecc.end()) - likevecc.begin();
-        			// std::cout << "Best c -- " << alpha[mincind] << endl;
-        			bestc = c[mincind];
-                }
-                else{
-                    std::cout << " best alpha index " << minalphaind << std::endl;
-                    std::cout << " best c index " << mincind << std::endl;
-                }
-
             }
+
             transformUpdate();
-        } else {
+        }
+        else {
             ROS_WARN("Not enough features! Only %d edge and %d planar features available.", laserCloudCornerLastDSNum, laserCloudSurfLastDSNum);
         }
     }
@@ -1990,6 +1907,41 @@ public:
             pubPath.publish(globalPath);
         }
     }
+
+    void selectBest(std::vector<float> resvec, std::vector<float> alpha, std::vector<float> c){
+        float totallike;
+    	std::vector<float> likevecalpha(41, 0.0);
+    	std::vector<float> likevecc(21, 0.0);
+
+        lenalpha = 41;
+        lenc = 21;
+
+        for(int ip =0; ip < lenalpha; ip++){
+            totallike = 0.0;
+                for(auto it : resvec)
+                {
+                    totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
+                }
+            likevecalpha[ip] = totallike;
+        }
+
+        auto smallest = std::min_element( likevecalpha.begin(), likevecalpha.end());
+        minalphaind = std::distance(likevecalpha.begin(), smallest);
+        bestalpha = alpha[minalphaind];
+
+        for(int ip2 =0; ip2 < lenc; ip2++){
+            totallike = 0.0;
+                for(auto it2 : resvec){
+                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
+                }
+
+            likevecc[ip2] = totallike;
+        }
+
+        auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
+        mincind = std::distance(likevecc.begin(), smallest2);
+        bestc = c[mincind];
+    }
 };
 
 
@@ -2000,6 +1952,9 @@ int main(int argc, char** argv)
     // float constTable[41][21];
     // const char* in
     string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablenew.txt";
+
+    // srand (static_cast <unsigned> (time(0)));
+
     vector<vector<float>> content;
     vector<float> row;
     string line, word;
@@ -2019,34 +1974,6 @@ int main(int argc, char** argv)
         cout<<"Could not open the file\n";
     }
     std::cout << " Finished reading " << std::endl;
-    // for(int i=0;i<content.size();i++)
-    // {
-    //     for(int j=0;j<content[i].size();j++)
-    //     {
-    //         cout<<content[i][j]<<" ";
-    //         MO.constTable[i][j] = content[i][j];
-    //     }
-    //     cout<<"\n";
-    // }
-    // infile.open("tablenew.txt");
-    // for (int i = 0; i < 41; i++){
-    //     for (int j = 0; j < 21; j++){
-    //         if ( !(input >> constTable[i][j]) )
-    //          {
-    //             cerr << "Error reading at " << i << ", " << j << '\n';
-    //             exit( 1 );
-    //          }
-    //          printf("%s\n", constTable[i][j]);
-    //     }
-    // }
-    //
-    // if ((constTable[40][20] > 14.9) && (constTable[40][20] < 15.0)){
-    //     std::cout << "Read constants correctly!" << std::endl;
-    // }
-    // else {
-    //     std::cout << "SOMETHING WRONg WITH READING TEXT FILE !! " << std::endl;
-    // }
-    // input.close();
 
     // MO.constTable = constTable;
     std::cout << " Initializing .. " << std::endl;

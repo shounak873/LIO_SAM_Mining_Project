@@ -167,8 +167,8 @@ public:
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
     float constTable[41][21];
-    float bestalpha;
-    float bestc;
+    float bestalpha = 2.0;
+    float bestc = 1.0;
     bool sparseFrame;
 
     int minalphaind = 0;
@@ -1066,7 +1066,8 @@ public:
             cv::Mat matD1(1, 3, CV_32F, cv::Scalar::all(0));
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
-            if (pointSearchSqDis[4] < 1.0) {
+            // allowing correspondences with larger distances
+            // if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
                 for (int j = 0; j < 5; j++) {
                     cx += laserCloudCornerFromMapDS->points[pointSearchInd[j]].x;
@@ -1136,11 +1137,10 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        laserCloudCornerIndexFlag[i] = true;
                         resvecCorner[i] = cornerDist;
                     }
                 }
-            }
+            // }
         }
     }
 
@@ -1168,7 +1168,8 @@ public:
             matB0.fill(-1);
             matX0.setZero();
 
-            if (pointSearchSqDis[4] < 1.0) {
+            // allowing correspondences with larger distances
+            // if (pointSearchSqDis[4] < 1.0) {
                 for (int j = 0; j < 5; j++) {
                     matA0(j, 0) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].x;
                     matA0(j, 1) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].y;
@@ -1239,11 +1240,10 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        laserCloudSurfIndexFlag[i] = true;
                         resvecSurf[i] = surfDist;
                     }
                 }
-            }
+            // }
         }
     }
 
@@ -1270,6 +1270,9 @@ public:
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
 
+        std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
+        std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
+
     }
 
     bool LMOptimization(int iterCount, float alphaB, float cB)
@@ -1295,10 +1298,8 @@ public:
 
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
-            std::cout << "not enough features .. not doing NLS " << std::endl;
-            // resetting indexes in case this returns false
-            std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-            std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
+            std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
+            resvec.clear();
             return false;
         }
 
@@ -1401,6 +1402,7 @@ public:
                             pow(matX.at<float>(4, 0) * 100, 2) +
                             pow(matX.at<float>(5, 0) * 100, 2));
 
+        resvec.clear();
 
         if (deltaR < 0.05 && deltaT < 0.05) {
             return true; // converged
@@ -1421,11 +1423,11 @@ public:
         resvec.clear();
 
         std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
-                                -1.0, -1.25, -1.50, -1,75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                                -4.0, -4.25, -4.50, -4,75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
-                                -7.0, -7.25, -7.50, -7,75, -8.0};
+                                -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
+                                -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
+                                -7.0, -7.25, -7.50, -7.75, -8.0};
 
-    	std::vector<float> c{1.0, 1.25, 1.50, 1,75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
+    	std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
                             4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
@@ -1451,6 +1453,9 @@ public:
                     break;
                 }
             }
+
+            std::cout << "Best alpha value : " << bestalpha << std::endl;
+            std::cout << "Best c value : " << bestc << std::endl;
 
             transformUpdate();
         }
@@ -1913,8 +1918,8 @@ public:
     	std::vector<float> likevecalpha(41, 0.0);
     	std::vector<float> likevecc(21, 0.0);
 
-        lenalpha = 41;
-        lenc = 21;
+        int lenalpha = 41;
+        int lenc = 21;
 
         for(int ip =0; ip < lenalpha; ip++){
             totallike = 0.0;

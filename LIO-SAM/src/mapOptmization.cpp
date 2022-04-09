@@ -174,6 +174,15 @@ public:
     int minalphaind = 0;
     int mincind = 0;
 
+    std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
+                            -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
+                            -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
+                            -7.0, -7.25, -7.50, -7.75, -8.0};
+
+    std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
+                        4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
+
+    // std::vector<float> c{1.0};
 
     mapOptimization(std::vector<std::vector<float>> content)
     {
@@ -193,7 +202,7 @@ public:
 
         // Read normalising constants from the text file;
 
-        // pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/trajectory", 1);
+        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/trajectory", 1);
         pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/map_global", 1);
         pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> ("lio_sam/mapping/odometry", 1);
         pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> ("lio_sam/mapping/odometry_incremental", 1);
@@ -309,7 +318,7 @@ public:
             saveKeyFramesAndFactor();
 
             // loop closure
-            correctPoses();
+            // correctPoses();
 
             publishOdometry();
 
@@ -1137,10 +1146,11 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        resvecCorner[i] = cornerDist;
+                        // resvecCorner[i] = cornerDist;
+                        resvecCorner[i] = pointSearchSqDis[0];
                     }
                 }
-            // }
+            // } //comment this one
         }
     }
 
@@ -1216,13 +1226,13 @@ public:
                     float y0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].y;
                     float z0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].z;
 
-                    float x1 = laserCloudSurfFromMapDS->points[pointSearchInd[1]].x;
-                    float y1 = laserCloudSurfFromMapDS->points[pointSearchInd[1]].y;
-                    float z1 = laserCloudSurfFromMapDS->points[pointSearchInd[1]].z;
+                    float x1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].x;
+                    float y1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].y;
+                    float z1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].z;
 
-                    float x2 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].x;
-                    float y2 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].y;
-                    float z2 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].z;
+                    float x2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].x;
+                    float y2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].y;
+                    float z2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].z;
 
                     float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
                                     + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
@@ -1240,10 +1250,11 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        resvecSurf[i] = surfDist;
+                        // resvecSurf[i] = surfDist;
+                        resvecSurf[i] = pointSearchSqDis[0];
                     }
                 }
-            // }
+            // }  // comment this one
         }
     }
 
@@ -1270,8 +1281,8 @@ public:
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
 
-        std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
+        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
+        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
 
     }
 
@@ -1418,41 +1429,37 @@ public:
             return;
         }
 
-        std::fill(resvecCorner.begin(), resvecCorner.end(), -1000.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), -1000.0);
+        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
+        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
-                                -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                                -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
-                                -7.0, -7.25, -7.50, -7.75, -8.0};
-
-    	std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
-                            4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
+        minalphaind = 2;
+        mincind = 2;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
+                for (int iterCount = 0; iterCount < 60; iterCount++)
+                {
+                    laserCloudOri->clear();
+                    coeffSel->clear();
 
-            for (int iterCount = 0; iterCount < 30; iterCount++)
-            {
-                laserCloudOri->clear();
-                coeffSel->clear();
+                    cornerOptimization();
+                    surfOptimization();
 
-                cornerOptimization();
-                surfOptimization();
+                    combineOptimizationCoeffs();
 
-                combineOptimizationCoeffs();
+                    if (iterCount % 10 == 0){
+                        selectBest(resvec, alpha, c);
+                    }
 
-                selectBest(resvec, alpha, c);
-
-                if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
-                    std::cout << " converged with itercount .. "  << iterCount << std::endl;
-                    break;
+                    if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
+                        std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                        break;
+                    }
                 }
-            }
 
             std::cout << "Best alpha value : " << bestalpha << std::endl;
             std::cout << "Best c value : " << bestc << std::endl;
@@ -1913,13 +1920,16 @@ public:
         }
     }
 
-    void selectBest(std::vector<float> resvec, std::vector<float> alpha, std::vector<float> c){
+    void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
         float totallike;
     	std::vector<float> likevecalpha(41, 0.0);
     	std::vector<float> likevecc(21, 0.0);
 
         int lenalpha = 41;
         int lenc = 21;
+
+        // minalphaind = 0;
+        // mincind = 0;
 
         for(int ip =0; ip < lenalpha; ip++){
             totallike = 0.0;
@@ -1986,12 +1996,12 @@ int main(int argc, char** argv)
 
     ROS_INFO("\033[1;32m----> Map Optimization Started.\033[0m");
 
-    std::thread loopthread(&mapOptimization::loopClosureThread, &MO);
+    // std::thread loopthread(&mapOptimization::loopClosureThread, &MO);
     std::thread visualizeMapThread(&mapOptimization::visualizeGlobalMapThread, &MO);
 
     ros::spin();
 
-    loopthread.join();
+    // loopthread.join();
     visualizeMapThread.join();
 
     return 0;

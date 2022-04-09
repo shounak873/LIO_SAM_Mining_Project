@@ -1551,85 +1551,85 @@ public:
         }
     }
     //
-    // void addGPSFactor()
-    // {
-    //     if (gpsQueue.empty())
-    //         return;
-    //
-    //     // wait for system initialized and settles down
-    //     if (cloudKeyPoses3D->points.empty())
-    //         return;
-    //     else
-    //     {
-    //         if (pointDistance(cloudKeyPoses3D->front(), cloudKeyPoses3D->back()) < 5.0)
-    //             return;
-    //     }
-    //
-    //     // pose covariance small, no need to correct
-    //     if (poseCovariance(3,3) < poseCovThreshold && poseCovariance(4,4) < poseCovThreshold)
-    //         return;
-    //
-    //     // last gps position
-    //     static PointType lastGPSPoint;
-    //
-    //     while (!gpsQueue.empty())
-    //     {
-    //         if (gpsQueue.front().header.stamp.toSec() < timeLaserInfoCur - 0.2)
-    //         {
-    //             // message too old
-    //             gpsQueue.pop_front();
-    //         }
-    //         else if (gpsQueue.front().header.stamp.toSec() > timeLaserInfoCur + 0.2)
-    //         {
-    //             // message too new
-    //             break;
-    //         }
-    //         else
-    //         {
-    //             nav_msgs::Odometry thisGPS = gpsQueue.front();
-    //             gpsQueue.pop_front();
-    //
-    //             // GPS too noisy, skip
-    //             float noise_x = thisGPS.pose.covariance[0];
-    //             float noise_y = thisGPS.pose.covariance[7];
-    //             float noise_z = thisGPS.pose.covariance[14];
-    //             if (noise_x > gpsCovThreshold || noise_y > gpsCovThreshold)
-    //                 continue;
-    //
-    //             float gps_x = thisGPS.pose.pose.position.x;
-    //             float gps_y = thisGPS.pose.pose.position.y;
-    //             float gps_z = thisGPS.pose.pose.position.z;
-    //             if (!useGpsElevation)
-    //             {
-    //                 gps_z = transformTobeMapped[5];
-    //                 noise_z = 0.01;
-    //             }
-    //
-    //             // GPS not properly initialized (0,0,0)
-    //             if (abs(gps_x) < 1e-6 && abs(gps_y) < 1e-6)
-    //                 continue;
-    //
-    //             // Add GPS every a few meters
-    //             PointType curGPSPoint;
-    //             curGPSPoint.x = gps_x;
-    //             curGPSPoint.y = gps_y;
-    //             curGPSPoint.z = gps_z;
-    //             if (pointDistance(curGPSPoint, lastGPSPoint) < 5.0)
-    //                 continue;
-    //             else
-    //                 lastGPSPoint = curGPSPoint;
-    //
-    //             gtsam::Vector Vector3(3);
-    //             Vector3 << max(noise_x, 1.0f), max(noise_y, 1.0f), max(noise_z, 1.0f);
-    //             noiseModel::Diagonal::shared_ptr gps_noise = noiseModel::Diagonal::Variances(Vector3);
-    //             gtsam::GPSFactor gps_factor(cloudKeyPoses3D->size(), gtsam::Point3(gps_x, gps_y, gps_z), gps_noise);
-    //             gtSAMgraph.add(gps_factor);
-    //
-    //             aLoopIsClosed = true;
-    //             break;
-    //         }
-    //     }
-    // }
+    void addGPSFactor()
+    {
+        if (gpsQueue.empty())
+            return;
+
+        // wait for system initialized and settles down
+        if (cloudKeyPoses3D->points.empty())
+            return;
+        else
+        {
+            if (pointDistance(cloudKeyPoses3D->front(), cloudKeyPoses3D->back()) < 5.0)
+                return;
+        }
+
+        // pose covariance small, no need to correct
+        if (poseCovariance(3,3) < poseCovThreshold && poseCovariance(4,4) < poseCovThreshold)
+            return;
+
+        // last gps position
+        static PointType lastGPSPoint;
+
+        while (!gpsQueue.empty())
+        {
+            if (gpsQueue.front().header.stamp.toSec() < timeLaserInfoCur - 0.2)
+            {
+                // message too old
+                gpsQueue.pop_front();
+            }
+            else if (gpsQueue.front().header.stamp.toSec() > timeLaserInfoCur + 0.2)
+            {
+                // message too new
+                break;
+            }
+            else
+            {
+                nav_msgs::Odometry thisGPS = gpsQueue.front();
+                gpsQueue.pop_front();
+
+                // GPS too noisy, skip
+                float noise_x = thisGPS.pose.covariance[0];
+                float noise_y = thisGPS.pose.covariance[7];
+                float noise_z = thisGPS.pose.covariance[14];
+                if (noise_x > gpsCovThreshold || noise_y > gpsCovThreshold)
+                    continue;
+
+                float gps_x = thisGPS.pose.pose.position.x;
+                float gps_y = thisGPS.pose.pose.position.y;
+                float gps_z = thisGPS.pose.pose.position.z;
+                if (!useGpsElevation)
+                {
+                    gps_z = transformTobeMapped[5];
+                    noise_z = 0.01;
+                }
+
+                // GPS not properly initialized (0,0,0)
+                if (abs(gps_x) < 1e-6 && abs(gps_y) < 1e-6)
+                    continue;
+
+                // Add GPS every a few meters
+                PointType curGPSPoint;
+                curGPSPoint.x = gps_x;
+                curGPSPoint.y = gps_y;
+                curGPSPoint.z = gps_z;
+                if (pointDistance(curGPSPoint, lastGPSPoint) < 5.0)
+                    continue;
+                else
+                    lastGPSPoint = curGPSPoint;
+
+                gtsam::Vector Vector3(3);
+                Vector3 << max(noise_x, 1.0f), max(noise_y, 1.0f), max(noise_z, 1.0f);
+                noiseModel::Diagonal::shared_ptr gps_noise = noiseModel::Diagonal::Variances(Vector3);
+                gtsam::GPSFactor gps_factor(cloudKeyPoses3D->size(), gtsam::Point3(gps_x, gps_y, gps_z), gps_noise);
+                gtSAMgraph.add(gps_factor);
+
+                aLoopIsClosed = true;
+                break;
+            }
+        }
+    }
     //
     void addLoopFactor()
     {

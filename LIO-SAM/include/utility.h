@@ -155,7 +155,7 @@ public:
         nh.param<std::string>("/robot_id", robot_id, "roboat");
 
         nh.param<std::string>("lio_sam/pointCloudTopic", pointCloudTopic, "points_raw");
-        nh.param<std::string>("lio_sam/imuTopic", imuTopic, "imu_raw");
+        nh.param<std::string>("lio_sam/imuTopic", imuTopic, "imu_correct");
         nh.param<std::string>("lio_sam/odomTopic", odomTopic, "odometry/imu");
         nh.param<std::string>("lio_sam/gpsTopic", gpsTopic, "odometry/gps");
 
@@ -354,16 +354,16 @@ float robustcostWeight(float r, float c, float alpha){
 	float weight;
     if(std::abs(r) <= 10){
     	if (alpha == 2){
-        	weight = 1/(c*c);}
+        	weight = 1;}
     	else if (alpha == 0){
-        	weight = 2/(r*r + 2*c*c);}
+        	weight = 2*(c*c)/(r*r + 2*c*c);}
     	else if (alpha < -1000){
-        	weight = exp(-0.5*(r*r/c*c))/(c*c);}
+        	weight = exp(-0.5*(r*r/c*c));}
     	else {
-        	weight = pow((r*r/(c*c*abs(alpha-2)) + 1),(alpha/2-1))/(c*c);}
+        	weight = pow((r*r/(c*c*abs(alpha-2)) + 1),(alpha/2-1));}
     }
     else{
-        weight = 0.00001;
+        weight = 0.00000001;
     }
 	return weight;
 }

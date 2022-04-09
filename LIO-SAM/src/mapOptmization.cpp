@@ -179,10 +179,10 @@ public:
                             -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
                             -7.0, -7.25, -7.50, -7.75, -8.0};
 
-    std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
-                        4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
+    // std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
+    //                     4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
 
-    // std::vector<float> c{1.0};
+    std::vector<float> c{1.0};
 
     mapOptimization(std::vector<std::vector<float>> content)
     {
@@ -1434,7 +1434,7 @@ public:
         resvec.clear();
 
         minalphaind = 2;
-        mincind = 2;
+        mincind = 0;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
@@ -1923,10 +1923,10 @@ public:
     void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
         float totallike;
     	std::vector<float> likevecalpha(41, 0.0);
-    	std::vector<float> likevecc(21, 0.0);
+    	std::vector<float> likevecc(1, 0.0);
 
         int lenalpha = 41;
-        int lenc = 21;
+        int lenc = 1;
 
         // minalphaind = 0;
         // mincind = 0;
@@ -1944,18 +1944,18 @@ public:
         minalphaind = std::distance(likevecalpha.begin(), smallest);
         bestalpha = alpha[minalphaind];
 
-        for(int ip2 =0; ip2 < lenc; ip2++){
-            totallike = 0.0;
-                for(auto it2 : resvec){
-                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-                }
-
-            likevecc[ip2] = totallike;
-        }
-
-        auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
-        mincind = std::distance(likevecc.begin(), smallest2);
-        bestc = c[mincind];
+        // for(int ip2 =0; ip2 < lenc; ip2++){
+        //     totallike = 0.0;
+        //         for(auto it2 : resvec){
+        //             totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
+        //         }
+        //
+        //     likevecc[ip2] = totallike;
+        // }
+        //
+        // auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
+        // mincind = std::distance(likevecc.begin(), smallest2);
+        // bestc = c[mincind];
     }
 };
 

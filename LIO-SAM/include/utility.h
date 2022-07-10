@@ -367,4 +367,33 @@ float robustcostWeight(float r, float c, float alpha){
     }
 	return weight;
 }
+
+float huberCost( float r, float c){
+    if (std::abs(r) <= c){
+        return pow(r,2)/2;
+    }
+    else{
+        return c*(std::abs(r)) - pow(c,2)/2;
+    }
+}
+
+float huberCostWeight(float r, float c){
+    if (std::abs(r) <= c){
+        return 1;
+    }
+    else{
+        return std:abs(c/r);
+    }
+}
+
+float GemanCost( float r, float mu){
+
+    return mu*pow(x,2)/(mu + pow(x,2));
+}
+
+float GemanCostWeight(float r, float mu){
+
+    return pow(mu,2)/(mu + pow(x,2));
+}
+
 #endif

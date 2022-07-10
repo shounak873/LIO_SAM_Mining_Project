@@ -143,6 +143,9 @@ public:
     bool isDegenerate = false;
     cv::Mat matP;
 
+    // for GNC with Geman Mcclure cost
+    float mu;
+
     int laserCloudCornerFromMapDSNum = 0;
     int laserCloudSurfFromMapDSNum = 0;
     int laserCloudCornerLastDSNum = 0;
@@ -166,23 +169,7 @@ public:
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
-    float constTable[41][21];
-    float bestalpha = 2.0;
-    float bestc = 1.0;
     bool sparseFrame;
-
-    int minalphaind = 0;
-    int mincind = 0;
-
-    std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
-                            -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                            -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
-                            -7.0, -7.25, -7.50, -7.75, -8.0};
-
-    std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
-                        4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
-
-    // std::vector<float> c{1.0};
 
     mapOptimization(std::vector<std::vector<float>> content)
     {
@@ -190,15 +177,6 @@ public:
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
-
-        for (int i = 0; i < 41; i++){
-            for (int j = 0; j < 21; j++){
-                constTable[i][j] = content[i][j];
-                // std::cout << constTable[i][j] << " ";
-            }
-            // std::cout << "\n";
-        }
-
 
         // Read normalising constants from the text file;
 
@@ -298,7 +276,8 @@ public:
         pcl::fromROSMsg(msgIn->cloud_corner,  *laserCloudCornerLast);
         pcl::fromROSMsg(msgIn->cloud_surface, *laserCloudSurfLast);
 
-
+        //  Initialize starting mu here
+        mu = 50;  // NOT SURE !!!
 
         std::lock_guard<std::mutex> lock(mtx);
 
@@ -396,19 +375,6 @@ public:
         thisPose6D.yaw   = transformIn[2];
         return thisPose6D;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     bool saveMapService(lio_sam::save_mapRequest& req, lio_sam::save_mapResponse& res)
@@ -550,15 +516,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
-
     void loopClosureThread()
     {
         if (loopClosureEnableFlag == false)
@@ -573,17 +530,17 @@ public:
         }
     }
 
-    // void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
-    // {
-    //     std::lock_guard<std::mutex> lock(mtxLoopInfo);
-    //     if (loopMsg->data.size() != 2)
-    //         return;
-    //
-    //     loopInfoVec.push_back(*loopMsg);
-    //
-    //     while (loopInfoVec.size() > 5)
-    //         loopInfoVec.pop_front();
-    // }
+    void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
+    {
+        std::lock_guard<std::mutex> lock(mtxLoopInfo);
+        if (loopMsg->data.size() != 2)
+            return;
+
+        loopInfoVec.push_back(*loopMsg);
+
+        while (loopInfoVec.size() > 5)
+            loopInfoVec.pop_front();
+    }
     //
     void performLoopClosure()
     {
@@ -831,15 +788,6 @@ public:
         markerArray.markers.push_back(markerEdge);
         pubLoopConstraintEdge.publish(markerArray);
     }
-
-
-
-
-
-
-
-
-
 
 
     void updateInitialGuess()
@@ -1286,7 +1234,7 @@ public:
 
     }
 
-    bool LMOptimization(int iterCount, float alphaB, float cB)
+    bool LMOptimization(int iterCount, float mu )
     {
         // std::cout << "starting LM optimization .." << std::endl;
         // std::cout << "alpha input is " << alphaB << " , " << " c input is " << cB << std::endl;
@@ -1357,7 +1305,7 @@ public:
             matA.at<float>(i, 5) = coeff.y;
             matB.at<float>(i, 0) = -coeff.intensity;
 
-            weights.at<float>(i,i) = robustcostWeight(resvec[i], cB, alphaB);
+            weights.at<float>(i,i) = gemancostWeight(resvec[i], mu);
         }
 
         cv::transpose(matA, matAt);
@@ -1433,8 +1381,6 @@ public:
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        minalphaind = 0;
-        mincind = 0;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
@@ -1451,18 +1397,15 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    // if (iterCount % 10 == 0){
-                    //     selectBest(resvec, alpha, c);
-                    // }
+                    if (itercount % 10 == 0){
+                        mu = mu/2;
+                    }
 
-                    if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
+                    if (LMOptimization(iterCount, mu) == true){
                         std::cout << " converged with itercount .. "  << iterCount << std::endl;
                         break;
                     }
                 }
-
-            std::cout << "Best alpha value : " << bestalpha << std::endl;
-            std::cout << "Best c value : " << bestc << std::endl;
 
             transformUpdate();
         }
@@ -1821,12 +1764,6 @@ public:
         laserOdometryROS.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         pubLaserOdometryGlobal.publish(laserOdometryROS);
 
-        //publish dist info
-        dist_info.header.stamp = timeLaserInfoStamp;
-        dist_info.bestalpha = bestalpha;
-        dist_info.bestc = bestc;
-        pubDistInfo.publish(dist_info);
-
         // Publish TF
         static tf::TransformBroadcaster br;
         tf::Transform t_odom_to_lidar = tf::Transform(tf::createQuaternionFromRPY(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]),
@@ -1920,75 +1857,12 @@ public:
         }
     }
 
-    void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
-        float totallike;
-    	std::vector<float> likevecalpha(41, 0.0);
-    	std::vector<float> likevecc(21, 0.0);
-
-        int lenalpha = 41;
-        int lenc = 21;
-
-        // minalphaind = 0;
-        // mincind = 0;
-
-        for(int ip =0; ip < lenalpha; ip++){
-            totallike = 0.0;
-                for(auto it : resvec)
-                {
-                    totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
-                }
-            likevecalpha[ip] = totallike;
-        }
-
-        auto smallest = std::min_element( likevecalpha.begin(), likevecalpha.end());
-        minalphaind = std::distance(likevecalpha.begin(), smallest);
-        bestalpha = alpha[minalphaind];
-
-        for(int ip2 =0; ip2 < lenc; ip2++){
-            totallike = 0.0;
-                for(auto it2 : resvec){
-                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-                }
-
-            likevecc[ip2] = totallike;
-        }
-
-        auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
-        mincind = std::distance(likevecc.begin(), smallest2);
-        bestc = c[mincind];
-    }
 };
 
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "lio_sam");
-
-    // float constTable[41][21];
-    // const char* in
-    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablenew.txt";
-
-    // srand (static_cast <unsigned> (time(0)));
-
-    vector<vector<float>> content;
-    vector<float> row;
-    string line, word;
-    fstream file (fname, ios::in);
-    if(file.is_open())
-    {
-        while(getline(file, line))
-        {
-            row.clear();
-            stringstream str(line);
-            while(getline(str, word, ' '))
-                row.push_back(stof(word));
-            content.push_back(row);
-        }
-    }
-    else{
-        cout<<"Could not open the file\n";
-    }
-    std::cout << " Finished reading " << std::endl;
 
     // MO.constTable = constTable;
     std::cout << " Initializing .. " << std::endl;

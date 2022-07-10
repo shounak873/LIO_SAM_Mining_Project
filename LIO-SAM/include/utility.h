@@ -367,4 +367,14 @@ float robustcostWeight(float r, float c, float alpha){
     }
 	return weight;
 }
+
+float GemanCost( float r, float mu){
+
+    return mu*pow(x,2)/(mu + pow(x,2));
+}
+
+float GemanCostWeight(float r, float mu){
+
+    return pow(mu,2)/(mu + pow(x,2));
+}
 #endif

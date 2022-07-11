@@ -171,7 +171,7 @@ public:
 
     // std::vector<float> c{1.0};
 
-    mapOptimization(std::vector<std::vector<float>> content)
+    mapOptimization()
     {
         ISAM2Params parameters;
         parameters.relinearizeThreshold = 0.1;
@@ -1308,8 +1308,8 @@ public:
 
         cv::transpose(matA, matAt);
         // added : multiplication by weight matrix
-        matAtA = matAt * weights * matA;
-        matAtB = matAt * weights * matB;
+        matAtA = matAt * matA;
+        matAtB = matAt * matB;
         cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
 
         if (iterCount == 0) {
@@ -1318,7 +1318,7 @@ public:
             cv::Mat matV(6, 6, CV_32F, cv::Scalar::all(0));
             cv::Mat matV2(6, 6, CV_32F, cv::Scalar::all(0));
 
-            cv::eigen(matAtWA, matE, matV);
+            cv::eigen(matAtA, matE, matV);
             matV.copyTo(matV2);
 
             isDegenerate = false;
@@ -1849,7 +1849,7 @@ int main(int argc, char** argv)
 
     // MO.constTable = constTable;
     std::cout << " Initializing .. " << std::endl;
-    mapOptimization MO(content);
+    mapOptimization MO;
 
     ROS_INFO("\033[1;32m----> Map Optimization Started.\033[0m");
 

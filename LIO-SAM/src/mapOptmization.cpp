@@ -303,13 +303,14 @@ public:
             publishFrames();
         }
         else{
-            std::cout << "Not doing anything ..  waiting for the next message " << std::endl;
+            // std::cout << "Not doing anything ..  waiting for the next message " << std::endl;
         }
     }
 
     void gpsHandler(const nav_msgs::Odometry::ConstPtr& gpsMsg)
     {
         gpsQueue.push_back(*gpsMsg);
+        std::cout << "GPS QUEUE LENGTH : " << gpsQueue.size() << std::endl;
     }
 
     void pointAssociateToMap(PointType const * const pi, PointType * const po)
@@ -526,7 +527,7 @@ public:
         {
             rate.sleep();
             performLoopClosure();
-            // visualizeLoopClosure();
+            visualizeLoopClosure();
         }
     }
 
@@ -1095,8 +1096,6 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        // resvecCorner[i] = cornerDist;
-                        resvecCorner[i] = pointSearchSqDis[0];
                     }
                 }
             } //comment this one
@@ -1199,8 +1198,6 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        // resvecSurf[i] = surfDist;
-                        resvecSurf[i] = pointSearchSqDis[0];
                     }
                 }
             }  // comment this one
@@ -1215,7 +1212,6 @@ public:
             if (laserCloudOriCornerFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriCornerVec[i]);
                 coeffSel->push_back(coeffSelCornerVec[i]);
-                resvec.push_back(resvecCorner[i]);
             }
         }
         // combine surf coeffs
@@ -1223,15 +1219,11 @@ public:
             if (laserCloudOriSurfFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriSurfVec[i]);
                 coeffSel->push_back(coeffSelSurfVec[i]);
-                resvec.push_back(resvecSurf[i]);
             }
         }
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
-
-        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
 
     }
 
@@ -1258,8 +1250,7 @@ public:
 
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
-            std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
-            resvec.clear();
+            // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
             return false;
         }
 
@@ -1643,7 +1634,7 @@ public:
         // thisPose3D.intensity = cloudKeyPoses3D->size(); // this can be used as index
         // cloudKeyPoses3D->push_back(thisPose3D);
         // std::cout << "Added keypose 3D " << transformTobeMapped[3] << ", " << transformTobeMapped[4] << " , " << transformTobeMapped[5] << std::endl;
-        std::cout << "Added keypose 3D " << thisPose3D.x << ", " << thisPose3D.y << " , " << thisPose3D.z << std::endl;
+        // std::cout << "Added keypose 3D " << thisPose3D.x << ", " << thisPose3D.y << " , " << thisPose3D.z << std::endl;
 
 
         thisPose6D.x = thisPose3D.x;

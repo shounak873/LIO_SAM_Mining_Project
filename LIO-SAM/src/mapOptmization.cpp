@@ -166,21 +166,8 @@ public:
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
-    float constTable[41][21];
-    float bestalpha = 2.0;
-    float bestc = 1.0;
     bool sparseFrame;
 
-    int minalphaind = 0;
-    int mincind = 0;
-
-    std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
-                            -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                            -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
-                            -7.0, -7.25, -7.50, -7.75, -8.0};
-
-    std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
-                        4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
 
     // std::vector<float> c{1.0};
 
@@ -190,15 +177,6 @@ public:
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
-
-        for (int i = 0; i < 41; i++){
-            for (int j = 0; j < 21; j++){
-                constTable[i][j] = content[i][j];
-                // std::cout << constTable[i][j] << " ";
-            }
-            // std::cout << "\n";
-        }
-
 
         // Read normalising constants from the text file;
 
@@ -399,18 +377,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
     bool saveMapService(lio_sam::save_mapRequest& req, lio_sam::save_mapResponse& res)
     {
       string saveMapDirectory;
@@ -547,15 +513,6 @@ public:
         downSizeFilterGlobalMapKeyFrames.filter(*globalMapKeyFramesDS);
         publishCloud(&pubLaserCloudSurround, globalMapKeyFramesDS, timeLaserInfoStamp, odometryFrame);
     }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -831,14 +788,6 @@ public:
         markerArray.markers.push_back(markerEdge);
         pubLoopConstraintEdge.publish(markerArray);
     }
-
-
-
-
-
-
-
-
 
 
 
@@ -1286,7 +1235,7 @@ public:
 
     }
 
-    bool LMOptimization(int iterCount, float alphaB, float cB)
+    bool LMOptimization(int iterCount)
     {
         // std::cout << "starting LM optimization .." << std::endl;
         // std::cout << "alpha input is " << alphaB << " , " << " c input is " << cB << std::endl;
@@ -1316,11 +1265,10 @@ public:
 
         cv::Mat matA(laserCloudSelNum, 6, CV_32F, cv::Scalar::all(0));
         cv::Mat matAt(6, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
-        cv::Mat matAtWA(6, 6, CV_32F, cv::Scalar::all(0));
+        cv::Mat matAtA(6, 6, CV_32F, cv::Scalar::all(0));
         cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
-        cv::Mat matAtWB(6, 1, CV_32F, cv::Scalar::all(0));
+        cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));
         cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
-        cv::Mat weights = cv::Mat::eye(laserCloudSelNum, laserCloudSelNum, CV_32F);
 
 
         PointType pointOri, coeff;
@@ -1356,15 +1304,13 @@ public:
             matA.at<float>(i, 4) = coeff.x;
             matA.at<float>(i, 5) = coeff.y;
             matB.at<float>(i, 0) = -coeff.intensity;
-
-            weights.at<float>(i,i) = robustcostWeight(resvec[i], cB, alphaB);
         }
 
         cv::transpose(matA, matAt);
         // added : multiplication by weight matrix
-        matAtWA = matAt * weights * matA;
-        matAtWB = matAt * weights * matB;
-        cv::solve(matAtWA, matAtWB, matX, cv::DECOMP_QR);
+        matAtA = matAt * weights * matA;
+        matAtB = matAt * weights * matB;
+        cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
 
         if (iterCount == 0) {
 
@@ -1433,9 +1379,6 @@ public:
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        minalphaind = 0;
-        mincind = 0;
-
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
@@ -1451,18 +1394,12 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    // if (iterCount % 10 == 0){
-                    //     selectBest(resvec, alpha, c);
-                    // }
-
-                    if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
+                    if (LMOptimization(iterCount) == true){
                         std::cout << " converged with itercount .. "  << iterCount << std::endl;
                         break;
                     }
                 }
 
-            std::cout << "Best alpha value : " << bestalpha << std::endl;
-            std::cout << "Best c value : " << bestc << std::endl;
 
             transformUpdate();
         }
@@ -1719,18 +1656,6 @@ public:
         thisPose6D.time = timeLaserInfoCur;
         cloudKeyPoses6D->push_back(thisPose6D);
 
-        // thisPose6D.x = transformTobeMapped[3];
-        // thisPose6D.y = transformTobeMapped[4];
-        // thisPose6D.z = transformTobeMapped[5];
-        // thisPose6D.intensity = thisPose3D.intensity ; // this can be used as index
-        // thisPose6D.roll  = transformTobeMapped[0];
-        // thisPose6D.pitch = transformTobeMapped[1];
-        // thisPose6D.yaw   = transformTobeMapped[2];
-        // thisPose6D.time = timeLaserInfoCur;
-        // cloudKeyPoses6D->push_back(thisPose6D);
-        // std::cout << "Added keypose 3D translation " << transformTobeMapped[3] << ", " << transformTobeMapped[4] << " , " << transformTobeMapped[5] << std::endl;
-        // std::cout << "Added keypose 3D rotation " << transformTobeMapped[0] << ", " << transformTobeMapped[1] << " , " << transformTobeMapped[2] << std::endl;
-
         // cout << "****************************************************" << endl;
         // cout << "Pose covariance:" << endl;
         // cout << isam->marginalCovariance(isamCurrentEstimate.size()-1) << endl << endl;
@@ -1821,11 +1746,6 @@ public:
         laserOdometryROS.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         pubLaserOdometryGlobal.publish(laserOdometryROS);
 
-        //publish dist info
-        dist_info.header.stamp = timeLaserInfoStamp;
-        dist_info.bestalpha = bestalpha;
-        dist_info.bestc = bestc;
-        pubDistInfo.publish(dist_info);
 
         // Publish TF
         static tf::TransformBroadcaster br;
@@ -1920,75 +1840,12 @@ public:
         }
     }
 
-    void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
-        float totallike;
-    	std::vector<float> likevecalpha(41, 0.0);
-    	std::vector<float> likevecc(21, 0.0);
-
-        int lenalpha = 41;
-        int lenc = 21;
-
-        // minalphaind = 0;
-        // mincind = 0;
-
-        for(int ip =0; ip < lenalpha; ip++){
-            totallike = 0.0;
-                for(auto it : resvec)
-                {
-                    totallike += -log(exp(-robustcost(it,c[mincind], alpha[ip]))/constTable[ip][mincind]);
-                }
-            likevecalpha[ip] = totallike;
-        }
-
-        auto smallest = std::min_element( likevecalpha.begin(), likevecalpha.end());
-        minalphaind = std::distance(likevecalpha.begin(), smallest);
-        bestalpha = alpha[minalphaind];
-
-        for(int ip2 =0; ip2 < lenc; ip2++){
-            totallike = 0.0;
-                for(auto it2 : resvec){
-                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-                }
-
-            likevecc[ip2] = totallike;
-        }
-
-        auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
-        mincind = std::distance(likevecc.begin(), smallest2);
-        bestc = c[mincind];
-    }
 };
 
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "lio_sam");
-
-    // float constTable[41][21];
-    // const char* in
-    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablenew.txt";
-
-    // srand (static_cast <unsigned> (time(0)));
-
-    vector<vector<float>> content;
-    vector<float> row;
-    string line, word;
-    fstream file (fname, ios::in);
-    if(file.is_open())
-    {
-        while(getline(file, line))
-        {
-            row.clear();
-            stringstream str(line);
-            while(getline(str, word, ' '))
-                row.push_back(stof(word));
-            content.push_back(row);
-        }
-    }
-    else{
-        cout<<"Could not open the file\n";
-    }
-    std::cout << " Finished reading " << std::endl;
 
     // MO.constTable = constTable;
     std::cout << " Initializing .. " << std::endl;

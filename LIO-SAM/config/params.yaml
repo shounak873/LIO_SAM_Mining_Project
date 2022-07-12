@@ -13,10 +13,10 @@ lio_sam:
   mapFrame: "map"
 
   # GPS Settings
-  useImuHeadingInitialization: true           # if using GPS data, set to "true"
-  useGpsElevation: true                      # if GPS elevation is bad, set to "false"
+  useImuHeadingInitialization: false           # if using GPS data, set to "true"
+  useGpsElevation: false                      # if GPS elevation is bad, set to "false"
   gpsCovThreshold: 2.0                        # m^2, threshold for using GPS data
-  poseCovThreshold: 25.0                      # m^2, threshold for using GPS data
+  poseCovThreshold: 4.0                      # m^2, threshold for using GPS data
 
   # Export settings
   savePCD: false                              # https://github.com/TixiaoShan/LIO-SAM/issues/3
@@ -52,12 +52,13 @@ lio_sam:
   extrinsicRot: [-1, 0, 0,
                   0, 1, 0,
                   0, 0, -1]
-  # extrinsicRot: [9.999976e-01, 7.553071e-04, -2.035826e-03,
-  #               -7.854027e-04, 9.998898e-01, -1.482298e-02,
-  #               2.024406e-03, 1.482454e-02, 9.998881e-01]
   extrinsicRPY: [0,  1, 0,
                  -1, 0, 0,
                   0, 0, 1]
+  # extrinsicRot: [9.999976e-01, 7.553071e-04, -2.035826e-03,
+  #               -7.854027e-04, 9.998898e-01, -1.482298e-02,
+  #               2.024406e-03, 1.482454e-02, 9.998881e-01]
+
   # extrinsicRPY: [9.999976e-01, 7.553071e-04, -2.035826e-03,
   #               -7.854027e-04, 9.998898e-01, -1.482298e-02,
   #               2.024406e-03, 1.482454e-02, 9.998881e-01]
@@ -94,7 +95,7 @@ lio_sam:
   surroundingKeyframeSearchRadius: 50.0         # meters, within n meters scan-to-map optimization (when loop closure disabled)
 
   # Loop closure
-  loopClosureEnableFlag: true
+  loopClosureEnableFlag: false
   loopClosureFrequency: 1.0                     # Hz, regulate loop closure constraint add frequency
   surroundingKeyframeSize: 50                   # submap size (when loop closure enabled)
   historyKeyframeSearchRadius: 15.0             # meters, key frame that is within n meters from current pose will be considerd for loop closure

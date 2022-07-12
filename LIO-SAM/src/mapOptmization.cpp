@@ -166,11 +166,11 @@ public:
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
+    bool sparseFrame;
+
     float constTable[41][21];
     float bestalpha = 2.0;
     float bestc = 1.0;
-    bool sparseFrame;
-
     int minalphaind = 0;
     int mincind = 0;
 
@@ -179,8 +179,6 @@ public:
                             -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
                             -7.0, -7.25, -7.50, -7.75, -8.0};
 
-    // std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
-    //                     4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
 
     std::vector<float> c{1.0};
 
@@ -199,8 +197,6 @@ public:
             // std::cout << "\n";
         }
 
-
-        // Read normalising constants from the text file;
 
         pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/trajectory", 1);
         pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/map_global", 1);
@@ -255,8 +251,6 @@ public:
         laserCloudOriSurfVec.resize(N_SCAN * Horizon_SCAN);
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
-        // laserCloudCornerIndexFlag.resize(N_SCAN * Horizon_SCAN);
-        // laserCloudSurfIndexFlag.resize(N_SCAN * Horizon_SCAN);
         resvecCorner.resize(N_SCAN * Horizon_SCAN);
         resvecSurf.resize(N_SCAN * Horizon_SCAN);
         // resvec.resize(2*N_SCAN * Horizon_SCAN);
@@ -264,8 +258,7 @@ public:
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
-        // std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-        // std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
+
 
         laserCloudCornerFromMap.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
@@ -324,9 +317,9 @@ public:
 
             publishFrames();
         }
-        else{
-            std::cout << "Not doing anything ..  waiting for the next message " << std::endl;
-        }
+        // else{
+        //     std::cout << "Not doing anything ..  waiting for the next message " << std::endl;
+        // }
     }
 
     void gpsHandler(const nav_msgs::Odometry::ConstPtr& gpsMsg)
@@ -396,18 +389,6 @@ public:
         thisPose6D.yaw   = transformIn[2];
         return thisPose6D;
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -550,15 +531,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
-
     void loopClosureThread()
     {
         if (loopClosureEnableFlag == false)
@@ -569,22 +541,22 @@ public:
         {
             rate.sleep();
             performLoopClosure();
-            // visualizeLoopClosure();
+            visualizeLoopClosure();
         }
     }
 
-    // void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
-    // {
-    //     std::lock_guard<std::mutex> lock(mtxLoopInfo);
-    //     if (loopMsg->data.size() != 2)
-    //         return;
-    //
-    //     loopInfoVec.push_back(*loopMsg);
-    //
-    //     while (loopInfoVec.size() > 5)
-    //         loopInfoVec.pop_front();
-    // }
-    //
+    void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
+    {
+        std::lock_guard<std::mutex> lock(mtxLoopInfo);
+        if (loopMsg->data.size() != 2)
+            return;
+
+        loopInfoVec.push_back(*loopMsg);
+
+        while (loopInfoVec.size() > 5)
+            loopInfoVec.pop_front();
+    }
+
     void performLoopClosure()
     {
         if (cloudKeyPoses3D->points.empty() == true)
@@ -833,15 +805,6 @@ public:
     }
 
 
-
-
-
-
-
-
-
-
-
     void updateInitialGuess()
     {
         // save current transformation before any processing
@@ -1019,7 +982,7 @@ public:
 
     void extractSurroundingKeyFrames()
     {
-        // std::cout << "starting extractSurroundingKeyFrames function .." << std::endl;
+
         if (cloudKeyPoses3D->points.empty() == true)
             return;
 
@@ -1036,7 +999,6 @@ public:
     void downsampleCurrentScan()
     {
         // Downsample cloud from current scan
-        // std::cout << " Downsampling current scan " << std::endl;
         laserCloudCornerLastDS->clear();
         downSizeFilterCorner.setInputCloud(laserCloudCornerLast);
         downSizeFilterCorner.filter(*laserCloudCornerLastDS);
@@ -1056,7 +1018,6 @@ public:
 
     void cornerOptimization()
     {
-        // std::cout << "starting corner optimization .. " << std::endl;
 
         updatePointAssociateToMap();
 
@@ -1156,7 +1117,6 @@ public:
 
     void surfOptimization()
     {
-        // std::cout << "starting surf optimization .. " << std::endl;
         updatePointAssociateToMap();
 
         #pragma omp parallel for num_threads(numberOfCores)
@@ -1309,7 +1269,7 @@ public:
 
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
-            std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
+            // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
             resvec.clear();
             return false;
         }
@@ -1926,10 +1886,6 @@ public:
     	std::vector<float> likevecc(1, 0.0);
 
         int lenalpha = 41;
-        int lenc = 1;
-
-        // minalphaind = 0;
-        // mincind = 0;
 
         for(int ip =0; ip < lenalpha; ip++){
             totallike = 0.0;
@@ -1944,18 +1900,6 @@ public:
         minalphaind = std::distance(likevecalpha.begin(), smallest);
         bestalpha = alpha[minalphaind];
 
-        // for(int ip2 =0; ip2 < lenc; ip2++){
-        //     totallike = 0.0;
-        //         for(auto it2 : resvec){
-        //             totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-        //         }
-        //
-        //     likevecc[ip2] = totallike;
-        // }
-        //
-        // auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
-        // mincind = std::distance(likevecc.begin(), smallest2);
-        // bestc = c[mincind];
     }
 };
 

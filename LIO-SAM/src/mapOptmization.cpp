@@ -166,11 +166,12 @@ public:
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
+
+    bool sparseFrame;
+
     float constTable[41][21];
     float bestalpha = 2.0;
     float bestc = 1.0;
-    bool sparseFrame;
-
     int minalphaind = 0;
     int mincind = 0;
 
@@ -182,7 +183,6 @@ public:
     std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0, 3.25, 3.50, 3.75,
                         4.0, 4.25, 4.50, 4.75, 5.0, 5.25, 5.50, 5.75, 6.0};
 
-    // std::vector<float> c{1.0};
 
     mapOptimization(std::vector<std::vector<float>> content)
     {
@@ -211,9 +211,9 @@ public:
 
         subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
-        // subLoop  = nh.subscribe<std_msgs::Float64MultiArray>("lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subLoop  = nh.subscribe<std_msgs::Float64MultiArray>("lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
-        // srvSaveMap  = nh.advertiseService("lio_sam/save_map", &mapOptimization::saveMapService, this);
+        srvSaveMap  = nh.advertiseService("lio_sam/save_map", &mapOptimization::saveMapService, this);
 
         pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/icp_loop_closure_history_cloud", 1);
         pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>("lio_sam/mapping/icp_loop_closure_corrected_cloud", 1);
@@ -255,8 +255,6 @@ public:
         laserCloudOriSurfVec.resize(N_SCAN * Horizon_SCAN);
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
-        // laserCloudCornerIndexFlag.resize(N_SCAN * Horizon_SCAN);
-        // laserCloudSurfIndexFlag.resize(N_SCAN * Horizon_SCAN);
         resvecCorner.resize(N_SCAN * Horizon_SCAN);
         resvecSurf.resize(N_SCAN * Horizon_SCAN);
         // resvec.resize(2*N_SCAN * Horizon_SCAN);
@@ -264,8 +262,7 @@ public:
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
-        // std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-        // std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
+
 
         laserCloudCornerFromMap.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
@@ -396,18 +393,6 @@ public:
         thisPose6D.yaw   = transformIn[2];
         return thisPose6D;
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -550,15 +535,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
-
     void loopClosureThread()
     {
         if (loopClosureEnableFlag == false)
@@ -569,21 +545,21 @@ public:
         {
             rate.sleep();
             performLoopClosure();
-            // visualizeLoopClosure();
+            visualizeLoopClosure();
         }
     }
 
-    // void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
-    // {
-    //     std::lock_guard<std::mutex> lock(mtxLoopInfo);
-    //     if (loopMsg->data.size() != 2)
-    //         return;
-    //
-    //     loopInfoVec.push_back(*loopMsg);
-    //
-    //     while (loopInfoVec.size() > 5)
-    //         loopInfoVec.pop_front();
-    // }
+    void loopInfoHandler(const std_msgs::Float64MultiArray::ConstPtr& loopMsg)
+    {
+        std::lock_guard<std::mutex> lock(mtxLoopInfo);
+        if (loopMsg->data.size() != 2)
+            return;
+
+        loopInfoVec.push_back(*loopMsg);
+
+        while (loopInfoVec.size() > 5)
+            loopInfoVec.pop_front();
+    }
     //
     void performLoopClosure()
     {
@@ -831,14 +807,6 @@ public:
         markerArray.markers.push_back(markerEdge);
         pubLoopConstraintEdge.publish(markerArray);
     }
-
-
-
-
-
-
-
-
 
 
 
@@ -1309,7 +1277,7 @@ public:
 
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
-            std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
+            // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
             resvec.clear();
             return false;
         }

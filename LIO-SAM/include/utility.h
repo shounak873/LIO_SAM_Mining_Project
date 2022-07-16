@@ -164,10 +164,10 @@ public:
         nh.param<std::string>("lio_sam/odometryFrame", odometryFrame, "odom");
         nh.param<std::string>("lio_sam/mapFrame", mapFrame, "map");
 
-        nh.param<bool>("lio_sam/useImuHeadingInitialization", useImuHeadingInitialization, true);
-        nh.param<bool>("lio_sam/useGpsElevation", useGpsElevation, true);
+        nh.param<bool>("lio_sam/useImuHeadingInitialization", useImuHeadingInitialization, false);
+        nh.param<bool>("lio_sam/useGpsElevation", useGpsElevation, false);
         nh.param<float>("lio_sam/gpsCovThreshold", gpsCovThreshold, 2.0);
-        nh.param<float>("lio_sam/poseCovThreshold", poseCovThreshold, 25.0);
+        nh.param<float>("lio_sam/poseCovThreshold", poseCovThreshold, 4.0);
 
         nh.param<bool>("lio_sam/savePCD", savePCD, false);
         nh.param<std::string>("lio_sam/savePCDDirectory", savePCDDirectory, "/Downloads/LOAM/");
@@ -229,7 +229,7 @@ public:
         nh.param<float>("lio_sam/surroundingKeyframeDensity", surroundingKeyframeDensity, 1.0);
         nh.param<float>("lio_sam/surroundingKeyframeSearchRadius", surroundingKeyframeSearchRadius, 50.0);
 
-        nh.param<bool>("lio_sam/loopClosureEnableFlag", loopClosureEnableFlag, true);
+        nh.param<bool>("lio_sam/loopClosureEnableFlag", loopClosureEnableFlag, false);
         nh.param<float>("lio_sam/loopClosureFrequency", loopClosureFrequency, 1.0);
         nh.param<int>("lio_sam/surroundingKeyframeSize", surroundingKeyframeSize, 50);
         nh.param<float>("lio_sam/historyKeyframeSearchRadius", historyKeyframeSearchRadius, 10.0);
@@ -339,36 +339,8 @@ float pointDistance(PointType p1, PointType p2)
     return sqrt((p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y) + (p1.z-p2.z)*(p1.z-p2.z));
 }
 
-float robustcost(float r, float c, float alpha){
-	if (alpha == 2.0){
-    	return 0.5*pow(r/c,2);}
-	else if (alpha == 0.0){
-    	return log(0.5*pow(r/c,2) + 1);}
-	else if (alpha < -1000.0){
-    	return 1 - exp(-0.5*pow(r/c,2));}
-	else {
-    	return (abs(alpha-2)/alpha)*(pow(r*r/(c*c*abs(alpha-2)) + 1,(alpha/2))-1);}
 
-}
-float robustcostWeight(float r, float c, float alpha){
-	float weight;
-    if(std::abs(r) <= 10){
-    	if (alpha == 2){
-        	weight = 1;}
-    	else if (alpha == 0){
-        	weight = 2*(c*c)/(r*r + 2*c*c);}
-    	else if (alpha < -1000){
-        	weight = exp(-0.5*(r*r/c*c));}
-    	else {
-        	weight = pow((r*r/(c*c*abs(alpha-2)) + 1),(alpha/2-1));}
-    }
-    else{
-        weight = 0.00000001;
-    }
-	return weight;
-}
-
-float huberCost( float r, float c){
+float hubercost( float r, float c){
     if (std::abs(r) <= c){
         return pow(r,2)/2;
     }
@@ -377,7 +349,7 @@ float huberCost( float r, float c){
     }
 }
 
-float huberCostWeight(float r, float c){
+float hubercostWeight(float r, float c){
     if (std::abs(r) <= c){
         return 1;
     }
@@ -386,14 +358,5 @@ float huberCostWeight(float r, float c){
     }
 }
 
-float GemanCost( float r, float mu){
-
-    return mu*pow(x,2)/(mu + pow(x,2));
-}
-
-float GemanCostWeight(float r, float mu){
-
-    return pow(mu,2)/(mu + pow(x,2));
-}
 
 #endif

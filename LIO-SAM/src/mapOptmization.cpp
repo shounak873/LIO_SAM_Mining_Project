@@ -23,7 +23,7 @@ using namespace gtsam;
 using symbol_shorthand::X; // Pose3 (x,y,z,r,p,y)
 using symbol_shorthand::V; // Vel   (xdot,ydot,zdot)
 using symbol_shorthand::B; // Bias  (ax,ay,az,gx,gy,gz)
-// using symbol_shorthand::G; // GPS pose
+using symbol_shorthand::G; // GPS pose
 
 #include <fstream>
 #include <iostream>

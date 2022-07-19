@@ -1401,14 +1401,14 @@ public:
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        minalphaind = 2;
-        mincind = 2;
+        minalphaind = 3;
+        mincind = 3;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
-            // std::cout << " optimization loop started .. " << std::endl;
+
                 for (int iterCount = 0; iterCount < 60; iterCount++)
                 {
                     laserCloudOri->clear();
@@ -1895,9 +1895,6 @@ public:
 
         int lenalpha = 41;
         int lenc = 21;
-
-        // minalphaind = 0;
-        // mincind = 0;
 
         for(int ip =0; ip < lenalpha; ip++){
             totallike = 0.0;

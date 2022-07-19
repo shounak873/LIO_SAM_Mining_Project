@@ -167,10 +167,12 @@ public:
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
     bool sparseFrame;
+    // Huber parameter
+    float c = 1.0;
 
     // std::vector<float> c{1.0};
 
-    mapOptimization(std::vector<std::vector<float>> content)
+    mapOptimization()
     {
         ISAM2Params parameters;
         parameters.relinearizeThreshold = 0.1;
@@ -1374,8 +1376,6 @@ public:
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        minalphaind = 0;
-        mincind = 0;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
@@ -1398,8 +1398,6 @@ public:
                     }
                 }
 
-            std::cout << "Best alpha value : " << bestalpha << std::endl;
-            std::cout << "Best c value : " << bestc << std::endl;
 
             transformUpdate();
         }
@@ -1861,7 +1859,7 @@ int main(int argc, char** argv)
 
     // MO.constTable = constTable;
     std::cout << " Initializing .. " << std::endl;
-    mapOptimization MO(content);
+    mapOptimization MO ;
 
     ROS_INFO("\033[1;32m----> Map Optimization Started.\033[0m");
 

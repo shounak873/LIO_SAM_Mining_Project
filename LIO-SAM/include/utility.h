@@ -354,7 +354,7 @@ float hubercostWeight(float r, float c){
         return 1;
     }
     else{
-        return std:abs(c/r);
+        return std::abs(c/r);
     }
 }
 

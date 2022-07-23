@@ -171,7 +171,7 @@ public:
     std::vector<float> resvec;
     bool sparseFrame;
 
-    mapOptimization(std::vector<std::vector<float>> content)
+    mapOptimization()
     {
         ISAM2Params parameters;
         parameters.relinearizeThreshold = 0.1;
@@ -277,7 +277,7 @@ public:
         pcl::fromROSMsg(msgIn->cloud_surface, *laserCloudSurfLast);
 
         //  Initialize starting mu here
-        mu = 50;  // NOT SURE !!!
+        mu = 20;  // NOT SURE !!!
 
         std::lock_guard<std::mutex> lock(mtx);
 
@@ -1387,7 +1387,7 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
-                for (int iterCount = 0; iterCount < 60; iterCount++)
+                for (int iterCount = 0; iterCount < 40; iterCount++)
                 {
                     laserCloudOri->clear();
                     coeffSel->clear();
@@ -1397,7 +1397,7 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    if (itercount % 10 == 0){
+                    if (iterCount % 10 == 0){
                         mu = mu/2;
                     }
 
@@ -1866,7 +1866,7 @@ int main(int argc, char** argv)
 
     // MO.constTable = constTable;
     std::cout << " Initializing .. " << std::endl;
-    mapOptimization MO(content);
+    mapOptimization MO ;
 
     ROS_INFO("\033[1;32m----> Map Optimization Started.\033[0m");
 

@@ -173,6 +173,7 @@ public:
     float bestc = 1.0;
     int minalphaind = 0;
     int mincind = 0;
+    int iter;
 
     std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
                             -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
@@ -292,7 +293,7 @@ public:
         pcl::fromROSMsg(msgIn->cloud_surface, *laserCloudSurfLast);
 
 
-
+        iter = 0;
         std::lock_guard<std::mutex> lock(mtx);
 
         static double timeLastProcessing = -1;
@@ -1417,6 +1418,7 @@ public:
 
                     if (LMOptimization(iterCount, alpha[minalphaind], c[mincind]) == true){
                         std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                        iter = iterCount;
                         break;
                     }
                 }
@@ -1785,6 +1787,7 @@ public:
         dist_info.header.stamp = timeLaserInfoStamp;
         dist_info.bestalpha = bestalpha;
         dist_info.bestc = bestc;
+        dist_info.iter = iter;
         pubDistInfo.publish(dist_info);
 
         // Publish TF

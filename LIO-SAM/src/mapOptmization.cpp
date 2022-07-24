@@ -33,6 +33,7 @@ using symbol_shorthand::G; // GPS pose
 #include <algorithm>
 #include <cstdlib>
 using namespace std;
+using namespace std::chrono;
 /*
     * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
     */
@@ -175,6 +176,7 @@ public:
     int minalphaind = 0;
     int mincind = 0;
     int iter;
+    float timing;
 
     std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
                             -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
@@ -300,6 +302,7 @@ public:
 
         std::lock_guard<std::mutex> lock(mtx);
         iter = 0;
+        timing = 0.0;
         static double timeLastProcessing = -1;
         if (timeLaserInfoCur - timeLastProcessing >= mappingProcessInterval)
         {
@@ -1392,6 +1395,7 @@ public:
 
     void scan2MapOptimization()
     {
+        auto start = high_resolution_clock::now();
         // std::cout << " scan2MapOptimization function started " << std::endl;
         if (cloudKeyPoses3D->points.empty()){
             // std::cout << "Empty key pose vector in scan2MapOptimization " <<std::endl;
@@ -1402,8 +1406,8 @@ public:
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        minalphaind = 0;
-        mincind = 0;
+        minalphaind = 3;
+        mincind = 3;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
@@ -1439,6 +1443,9 @@ public:
         else {
             ROS_WARN("Not enough features! Only %d edge and %d planar features available.", laserCloudCornerLastDSNum, laserCloudSurfLastDSNum);
         }
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+        timing = duration.count();
     }
 
     void transformUpdate()
@@ -1796,6 +1803,7 @@ public:
         dist_info.bestalpha = bestalpha;
         dist_info.bestc = bestc;
         dist_info.iter = iter;
+        dist_info.timing = timing;
         pubDistInfo.publish(dist_info);
 
         // Publish TF

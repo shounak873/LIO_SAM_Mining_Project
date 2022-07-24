@@ -2,4 +2,4 @@ Header header
 
 float32 bestc
 float32 bestalpha
-int iter
+int32 iter

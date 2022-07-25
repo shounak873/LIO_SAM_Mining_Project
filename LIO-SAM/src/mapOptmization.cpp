@@ -32,6 +32,8 @@ using symbol_shorthand::G; // GPS pose
 #include <sstream>
 #include <algorithm>
 #include <cstdlib>
+#include <chrono>
+using namespace std::chrono;
 using namespace std;
 /*
     * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
@@ -171,6 +173,9 @@ public:
     std::vector<float> resvec;
     bool sparseFrame;
 
+    int iter;
+    float timing;
+
     mapOptimization()
     {
         ISAM2Params parameters;
@@ -278,6 +283,8 @@ public:
 
         //  Initialize starting mu here
         mu = 20;  // NOT SURE !!!
+        iter = 0;
+        timing = 0.0;
 
         std::lock_guard<std::mutex> lock(mtx);
 
@@ -1371,6 +1378,7 @@ public:
 
     void scan2MapOptimization()
     {
+        auto start = high_resolution_clock::now();
         // std::cout << " scan2MapOptimization function started " << std::endl;
         if (cloudKeyPoses3D->points.empty()){
             // std::cout << "Empty key pose vector in scan2MapOptimization " <<std::endl;
@@ -1403,6 +1411,7 @@ public:
 
                     if (LMOptimization(iterCount, mu) == true){
                         std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                        iter = iterCount;
                         break;
                     }
                 }
@@ -1412,6 +1421,12 @@ public:
         else {
             ROS_WARN("Not enough features! Only %d edge and %d planar features available.", laserCloudCornerLastDSNum, laserCloudSurfLastDSNum);
         }
+
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+
+        timing = duration.count();
+
     }
 
     void transformUpdate()
@@ -1763,6 +1778,12 @@ public:
         laserOdometryROS.pose.pose.position.z = transformTobeMapped[5];
         laserOdometryROS.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         pubLaserOdometryGlobal.publish(laserOdometryROS);
+
+        //publish dist info
+        dist_info.header.stamp = timeLaserInfoStamp;
+        dist_info.iter = iter;
+        dist_info.timing = timing;
+        pubDistInfo.publish(dist_info);
 
         // Publish TF
         static tf::TransformBroadcaster br;

@@ -828,8 +828,8 @@ public:
             transformTobeMapped[1] = cloudInfo.imuPitchInit;
             transformTobeMapped[2] = cloudInfo.imuYawInit;
 
-            // if (!useImuHeadingInitialization)
-            //     transformTobeMapped[2] = 0;
+            if (!useImuHeadingInitialization)
+                transformTobeMapped[2] = 0;
             // std::cout << "Last imu transformation " << cloudInfo.imuRollInit << " " << cloudInfo.imuPitchInit << " " << cloudInfo.imuYawInit << std::endl;
             lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
             return;

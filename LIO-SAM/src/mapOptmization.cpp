@@ -828,8 +828,8 @@ public:
             transformTobeMapped[1] = cloudInfo.imuPitchInit;
             transformTobeMapped[2] = cloudInfo.imuYawInit;
 
-            // if (!useImuHeadingInitialization)
-            //     transformTobeMapped[2] = 0;
+            if (!useImuHeadingInitialization)
+                transformTobeMapped[2] = 0;
             // std::cout << "Last imu transformation " << cloudInfo.imuRollInit << " " << cloudInfo.imuPitchInit << " " << cloudInfo.imuYawInit << std::endl;
             lastImuTransformation = pcl::getTransformation(0, 0, 0, cloudInfo.imuRollInit, cloudInfo.imuPitchInit, cloudInfo.imuYawInit); // save imu before return;
             return;
@@ -1048,7 +1048,7 @@ public:
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
             // allowing correspondences with larger distances
-            // if (pointSearchSqDis[4] < 1.0) {
+            if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
                 for (int j = 0; j < 5; j++) {
                     cx += laserCloudCornerFromMapDS->points[pointSearchInd[j]].x;
@@ -1118,11 +1118,11 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        // resvecCorner[i] = cornerDist;
-                        resvecCorner[i] = pointSearchSqDis[0];
+                        resvecCorner[i] = cornerDist;
+                        // resvecCorner[i] = pointSearchSqDis[0];
                     }
                 }
-            // } //comment this one
+            } //comment this one
         }
     }
 
@@ -1151,7 +1151,7 @@ public:
             matX0.setZero();
 
             // allowing correspondences with larger distances
-            // if (pointSearchSqDis[4] < 1.0) {
+            if (pointSearchSqDis[4] < 1.0) {
                 for (int j = 0; j < 5; j++) {
                     matA0(j, 0) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].x;
                     matA0(j, 1) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].y;
@@ -1222,11 +1222,11 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        // resvecSurf[i] = surfDist;
+                        resvecSurf[i] = surfDist;
                         resvecSurf[i] = pointSearchSqDis[0];
                     }
                 }
-            // }  // comment this one
+            }  // comment this one
         }
     }
 
@@ -1406,8 +1406,8 @@ public:
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
-        minalphaind = 3;
-        mincind = 3;
+        minalphaind = 0;
+        mincind = 0;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
@@ -1637,7 +1637,7 @@ public:
         addOdomFactor();
 
         // gps factor
-        // addGPSFactor();
+        addGPSFactor();
 
         // loop factor
         // addLoopFactor();

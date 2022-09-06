@@ -1041,7 +1041,7 @@ public:
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
             // allowing correspondences with larger distances
-            // if (pointSearchSqDis[4] < 1.0) {
+            if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
                 for (int j = 0; j < 5; j++) {
                     cx += laserCloudCornerFromMapDS->points[pointSearchInd[j]].x;
@@ -1111,11 +1111,11 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        // resvecCorner[i] = cornerDist;
-                        resvecCorner[i] = pointSearchSqDis[0];
+                        resvecCorner[i] = cornerDist;
+                        // resvecCorner[i] = pointSearchSqDis[0];
                     }
                 }
-            // } //comment this one
+            } //comment this one
         }
     }
 
@@ -1143,7 +1143,7 @@ public:
             matX0.setZero();
 
             // allowing correspondences with larger distances
-            // if (pointSearchSqDis[4] < 1.0) {
+            if (pointSearchSqDis[4] < 1.0) {
                 for (int j = 0; j < 5; j++) {
                     matA0(j, 0) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].x;
                     matA0(j, 1) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].y;
@@ -1214,11 +1214,11 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        // resvecSurf[i] = surfDist;
-                        resvecSurf[i] = pointSearchSqDis[0];
+                        resvecSurf[i] = surfDist;
+                        // resvecSurf[i] = pointSearchSqDis[0];
                     }
                 }
-            // }  // comment this one
+            }  // comment this one
         }
     }
 
@@ -1416,7 +1416,7 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    if (iterCount % 10 == 0){
+                    if (iterCount % 5 == 0){
                         selectBest(resvec, alpha, c);
                     }
 

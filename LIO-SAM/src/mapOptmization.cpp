@@ -177,6 +177,7 @@ public:
     int mincind = 0;
     int iter;
     float timing;
+    float globalScale = 0.1;
 
     std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
                             -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
@@ -212,7 +213,7 @@ public:
         pubPath                     = nh.advertise<nav_msgs::Path>("lio_sam/mapping/path", 1);
         pubDistInfo                 = nh.advertise<lio_sam::dist>("lio_sam/mapping/dist_info", 1); // this will publish best c and alpha based on time
 
-        subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 5, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
         subLoop  = nh.subscribe<std_msgs::Float64MultiArray>("lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
@@ -333,6 +334,7 @@ public:
     void gpsHandler(const nav_msgs::Odometry::ConstPtr& gpsMsg)
     {
         gpsQueue.push_back(*gpsMsg);
+        std::cout << "GPS QUEUE LENGTH : " << gpsQueue.size() << std::endl;
     }
 
     void pointAssociateToMap(PointType const * const pi, PointType * const po)
@@ -1119,7 +1121,7 @@ public:
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                         resvecCorner[i] = cornerDist;
-                        // resvecCorner[i] = pointSearchSqDis[0];
+                        // resvecCorner[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
             } //comment this one
@@ -1223,7 +1225,7 @@ public:
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                         resvecSurf[i] = surfDist;
-                        resvecSurf[i] = pointSearchSqDis[0];
+                        // resvecSurf[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
             }  // comment this one
@@ -1249,6 +1251,20 @@ public:
                 resvec.push_back(resvecSurf[i]);
             }
         }
+
+        // int size = resvec.size();
+        // ofstream myfile ("residuals.txt");
+        // if (myfile.is_open())
+        //   {
+        //     myfile << "This is a line.\n";
+        //     myfile << "This is another line.\n";
+        //     for(int count = 0; count < size; count ++){
+        //         myfile << resvec[count] << " " ;
+        //     }
+        //     myfile.close();
+        //   }
+        // else cout << "Unable to open file";
+
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
@@ -1424,7 +1440,7 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    if (iterCount % 10 == 0){
+                    if (iterCount % 5 == 0){
                         selectBest(resvec, alpha, c);
                     }
 
@@ -1637,7 +1653,7 @@ public:
         addOdomFactor();
 
         // gps factor
-        addGPSFactor();
+        // addGPSFactor();
 
         // loop factor
         // addLoopFactor();

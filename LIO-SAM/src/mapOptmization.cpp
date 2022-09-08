@@ -1269,8 +1269,8 @@ public:
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
 
-        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
+        // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
+        // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
 
     }
 

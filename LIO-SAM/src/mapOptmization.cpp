@@ -1604,7 +1604,7 @@ public:
         // addGPSFactor();
 
         // loop factor
-        // addLoopFactor();
+        addLoopFactor();
 
         // cout << "****************************************************" << endl;
         // gtSAMgraph.print("GTSAM Graph:\n");

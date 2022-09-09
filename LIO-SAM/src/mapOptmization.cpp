@@ -1375,29 +1375,34 @@ public:
         std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
         std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
+        bool converged = false;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
-                for (int iterCount = 0; iterCount < 30; iterCount++)
-                {
-                    laserCloudOri->clear();
-                    coeffSel->clear();
+            for (int iterCount = 0; iterCount < 30; iterCount++)
+            {
+                laserCloudOri->clear();
+                coeffSel->clear();
 
-                    cornerOptimization();
-                    surfOptimization();
+                cornerOptimization();
+                surfOptimization();
 
-                    combineOptimizationCoeffs();
+                combineOptimizationCoeffs();
 
-                    if (LMOptimization(iterCount) == true){
-                        std::cout << " converged with itercount .. "  << iterCount << std::endl;
-                        iter  = iterCount;
-                        break;
-                    }
+                if (LMOptimization(iterCount) == true){
+                    std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                    converged = true;
+                    iter  = iterCount;
+                    break;
                 }
+            }
 
+            if(converged == false){
+                iter = 30;
+            }
 
             transformUpdate();
         }

@@ -164,8 +164,8 @@ public:
 
     // cv::Mat residuals(laserCloudSelNum, 1, CV_32F); // this has to be a variable length cv::mat
     lio_sam::dist dist_info;
-    std::vector<float> resvecCorner;
-    std::vector<float> resvecSurf;
+    // std::vector<float> resvecCorner;
+    // std::vector<float> resvecSurf;
     std::vector<float> resvec;
 
     bool sparseFrame;
@@ -194,6 +194,7 @@ public:
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
+        resvec.reserve(5000);
 
         for (int i = 0; i < 41; i++){
             for (int j = 0; j < 21; j++){
@@ -259,9 +260,10 @@ public:
         laserCloudOriSurfVec.resize(N_SCAN * Horizon_SCAN);
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
-        resvecCorner.resize(N_SCAN * Horizon_SCAN);
-        resvecSurf.resize(N_SCAN * Horizon_SCAN);
-        // resvec.resize(2*N_SCAN * Horizon_SCAN);
+
+        // resvecCorner.resize(N_SCAN * Horizon_SCAN);
+        // resvecSurf.resize(N_SCAN * Horizon_SCAN);
+        // resvec.resize(N_SCAN * Horizon_SCAN);
 
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
@@ -334,7 +336,7 @@ public:
     void gpsHandler(const nav_msgs::Odometry::ConstPtr& gpsMsg)
     {
         gpsQueue.push_back(*gpsMsg);
-        std::cout << "GPS QUEUE LENGTH : " << gpsQueue.size() << std::endl;
+        // std::cout << "GPS QUEUE LENGTH : " << gpsQueue.size() << std::endl;
     }
 
     void pointAssociateToMap(PointType const * const pi, PointType * const po)
@@ -1120,7 +1122,8 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        resvecCorner[i] = cornerDist;
+                        resvec.push_back(cornerDist);
+                        // resvecCorner[i] = cornerDist;
                         // resvecCorner[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
@@ -1224,7 +1227,8 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        resvecSurf[i] = surfDist;
+                        resvec.push_back(surfDist);
+                        // resvecSurf[i] = surfDist;
                         // resvecSurf[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
@@ -1240,7 +1244,7 @@ public:
             if (laserCloudOriCornerFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriCornerVec[i]);
                 coeffSel->push_back(coeffSelCornerVec[i]);
-                resvec.push_back(resvecCorner[i]);
+                // resvec.push_back(resvecCorner[i]);
             }
         }
         // combine surf coeffs
@@ -1248,7 +1252,7 @@ public:
             if (laserCloudOriSurfFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriSurfVec[i]);
                 coeffSel->push_back(coeffSelSurfVec[i]);
-                resvec.push_back(resvecSurf[i]);
+                // resvec.push_back(resvecSurf[i]);
             }
         }
 
@@ -1296,6 +1300,7 @@ public:
         float crz = cos(transformTobeMapped[0]);
 
         int laserCloudSelNum = laserCloudOri->size();
+        // std::cout << "LENGTH OF RESIDUAL VECTOR " << laserCloudSelNum << std::endl;
         if (laserCloudSelNum < 50) {
             // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
             resvec.clear();
@@ -1418,8 +1423,8 @@ public:
             return;
         }
 
-        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
+        // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
+        // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
         minalphaind = 0;
@@ -1430,13 +1435,17 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
 
-                for (int iterCount = 0; iterCount < 60; iterCount++)
+                for (int iterCount = 0; iterCount < 30; iterCount++)
                 {
+                    // std::cout << "SIZE OF RESIDUAL VECTOR " << resvec.size() << std::endl;
+
                     laserCloudOri->clear();
                     coeffSel->clear();
 
                     cornerOptimization();
                     surfOptimization();
+
+                    // std::cout << "SIZE OF RESIDUAL VECTOR AFTER ADDING " << resvec.size() << std::endl;
 
                     combineOptimizationCoeffs();
 
@@ -1462,6 +1471,7 @@ public:
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
         timing = duration.count();
+        std::cout << "Convergence time " << timing << std::endl;
     }
 
     void transformUpdate()

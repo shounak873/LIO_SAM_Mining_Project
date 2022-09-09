@@ -1383,7 +1383,7 @@ public:
         // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
         // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
-        bool convergence = false;
+        bool converged = false;
 
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)

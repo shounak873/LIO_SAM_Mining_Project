@@ -164,8 +164,8 @@ public:
 
     // cv::Mat residuals(laserCloudSelNum, 1, CV_32F); // this has to be a variable length cv::mat
     lio_sam::dist dist_info;
-    // std::vector<float> resvecCorner;
-    // std::vector<float> resvecSurf;
+    std::vector<float> resvecCorner;
+    std::vector<float> resvecSurf;
     std::vector<float> resvec;
 
     bool sparseFrame;
@@ -194,7 +194,7 @@ public:
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
-        resvec.reserve(5000);
+        resvec.reserve(4000);
 
         for (int i = 0; i < 41; i++){
             for (int j = 0; j < 21; j++){
@@ -261,8 +261,8 @@ public:
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
 
-        // resvecCorner.resize(N_SCAN * Horizon_SCAN);
-        // resvecSurf.resize(N_SCAN * Horizon_SCAN);
+        resvecCorner.resize(N_SCAN * Horizon_SCAN);
+        resvecSurf.resize(N_SCAN * Horizon_SCAN);
         // resvec.resize(N_SCAN * Horizon_SCAN);
 
 
@@ -1122,8 +1122,8 @@ public:
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
-                        resvec.push_back(cornerDist);
-                        // resvecCorner[i] = cornerDist;
+                        // resvec.push_back(cornerDist);
+                        resvecCorner[i] = cornerDist;
                         // resvecCorner[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
@@ -1227,8 +1227,8 @@ public:
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
-                        resvec.push_back(surfDist);
-                        // resvecSurf[i] = surfDist;
+                        // resvec.push_back(surfDist);
+                        resvecSurf[i] = surfDist;
                         // resvecSurf[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
@@ -1244,7 +1244,7 @@ public:
             if (laserCloudOriCornerFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriCornerVec[i]);
                 coeffSel->push_back(coeffSelCornerVec[i]);
-                // resvec.push_back(resvecCorner[i]);
+                resvec.push_back(resvecCorner[i]);
             }
         }
         // combine surf coeffs
@@ -1252,7 +1252,7 @@ public:
             if (laserCloudOriSurfFlag[i] == true){
                 laserCloudOri->push_back(laserCloudOriSurfVec[i]);
                 coeffSel->push_back(coeffSelSurfVec[i]);
-                // resvec.push_back(resvecSurf[i]);
+                resvec.push_back(resvecSurf[i]);
             }
         }
 

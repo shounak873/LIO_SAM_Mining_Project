@@ -1383,6 +1383,7 @@ public:
         // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
         // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
+        bool convergence = false;
 
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
@@ -1402,12 +1403,15 @@ public:
 
                     if (LMOptimization(iterCount, c) == true){
                         std::cout << " converged with itercount .. "  << iterCount << std::endl;
+                        converged = true;
                         iter = iterCount;
                         break;
                     }
                 }
 
-
+            if(converged == false){
+                iter = 30;
+            }
             transformUpdate();
         }
         else {

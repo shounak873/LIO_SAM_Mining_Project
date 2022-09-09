@@ -184,6 +184,7 @@ public:
         parameters.relinearizeThreshold = 0.1;
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
+        resvec.reserve(4000);
 
         // Read normalising constants from the text file;
 
@@ -243,7 +244,6 @@ public:
 
         resvecCorner.resize(N_SCAN * Horizon_SCAN);
         resvecSurf.resize(N_SCAN * Horizon_SCAN);
-        // resvec.resize(2*N_SCAN * Horizon_SCAN);
 
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
@@ -1233,8 +1233,8 @@ public:
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
 
-        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
+        // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
+        // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
 
     }
 
@@ -1380,8 +1380,8 @@ public:
             return;
         }
 
-        std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
-        std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
+        // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
+        // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
 
 
@@ -1390,7 +1390,7 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
-                for (int iterCount = 0; iterCount < 60; iterCount++)
+                for (int iterCount = 0; iterCount < 30; iterCount++)
                 {
                     laserCloudOri->clear();
                     coeffSel->clear();

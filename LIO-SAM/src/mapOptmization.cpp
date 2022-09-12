@@ -301,7 +301,7 @@ public:
             saveKeyFramesAndFactor();
 
             // loop closure
-            // correctPoses();
+            correctPoses();
 
             publishOdometry();
 

@@ -105,6 +105,12 @@ public:
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLast; // surf feature set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS; // downsampled corner featuer set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS; // downsampled surf featuer set from odoOptimization
+    pcl::ExtractIndices<PointType> extractCorner; //
+    pcl::ExtractIndices<PointType> extractSurf; //
+    pcl::PointIndices::Ptr inliersCorner (new pcl::PointIndices()); // indices with good residuals
+    pcl::PointIndices::Ptr inliersSurf (new pcl::PointIndices());
+    float thresh = 1.0;
+
 
     pcl::PointCloud<PointType>::Ptr laserCloudOri;
     pcl::PointCloud<PointType>::Ptr coeffSel;
@@ -222,6 +228,11 @@ public:
 
         kdtreeSurroundingKeyPoses.reset(new pcl::KdTreeFLANN<PointType>());
         kdtreeHistoryKeyPoses.reset(new pcl::KdTreeFLANN<PointType>());
+
+        // extractSurf.reset(new pcl::ExtractIndices<PointType>());
+        // extractCorner.reset(new pcl::ExtractIndices<PointType>());
+        // inliersCorner.reset(new pcl::PointIndices());
+        // inliersSurf.reset(new pcl::PointIndices());
 
         laserCloudCornerLast.reset(new pcl::PointCloud<PointType>()); // corner feature set from odoOptimization
         laserCloudSurfLast.reset(new pcl::PointCloud<PointType>()); // surf feature set from odoOptimization
@@ -1031,7 +1042,7 @@ public:
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
             // allowing correspondences with larger distances
-            if (pointSearchSqDis[4] < 10.0) {
+            if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
                 for (int j = 0; j < 5; j++) {
                     cx += laserCloudCornerFromMapDS->points[pointSearchInd[j]].x;
@@ -1102,6 +1113,9 @@ public:
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                     }
+                    if (cornerDist > thresh){
+                        inliersCorner->indices.push_back(i);
+                    }
                 }
             } //comment this one
         }
@@ -1132,7 +1146,7 @@ public:
             matX0.setZero();
 
             // allowing correspondences with larger distances
-            if (pointSearchSqDis[4] < 10.0) {
+            if (pointSearchSqDis[4] < 1.0) {
                 for (int j = 0; j < 5; j++) {
                     matA0(j, 0) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].x;
                     matA0(j, 1) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].y;
@@ -1204,7 +1218,11 @@ public:
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                     }
+                    if (surfDist > thresh){
+                        inliersSurf->indices.push_back(i);
+                    }
                 }
+
             }  // comment this one
         }
     }
@@ -1256,6 +1274,9 @@ public:
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
             // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
+            inliersCorner->indices.clear();
+            inliersSurf->indices.clear();
+
             return false;
         }
 
@@ -1358,8 +1379,28 @@ public:
         resvec.clear();
 
         if (deltaR < 0.05 && deltaT < 0.05) {
+
+            // Filter bad residuals
+            extractCorner.setInputCloud(laserCloudCornerLastDS);
+            extractCorner.setIndices(inliersCorner);
+            extractCorner.setNegative(true);
+            extractCorner.filter(*laserCloudCornerLastDS);
+
+            //
+            extractSurf.setInputCloud(laserCloudSurfLastDS);
+            extractSurf.setIndices(inliersSurf);
+            extractSurf.setNegative(true);
+            extractSurf.filter(*laserCloudSurfLastDS);
+
+            inliersCorner->indices.clear();
+            inliersSurf->indices.clear();
+
             return true; // converged
         }
+
+        inliersCorner->indices.clear();
+        inliersSurf->indices.clear();
+
         return false; // keep optimizing
     }
 

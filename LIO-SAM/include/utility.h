@@ -29,6 +29,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/transform_listener.h>

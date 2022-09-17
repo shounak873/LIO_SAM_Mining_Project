@@ -169,7 +169,7 @@ public:
     std::vector<float> resvec;
     bool sparseFrame;
 
-    float constTable[41][21];
+    float constTable[25][9];
     float bestalpha = 2.0;
     float bestc = 1.0;
     int minalphaind = 0;
@@ -179,8 +179,7 @@ public:
 
     std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
                             -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                            -4.0, -4.25, -4.50, -4.75, -5.0, -5.25, -5.50, -5.75, -6.0, -6.25, -6.50, -6.75,
-                            -7.0, -7.25, -7.50, -7.75, -8.0};
+                            -4.0};
 
 
     std::vector<float> c{1.0};
@@ -193,8 +192,8 @@ public:
         isam = new ISAM2(parameters);
         resvec.reserve(4000);
 
-        for (int i = 0; i < 41; i++){
-            for (int j = 0; j < 21; j++){
+        for (int i = 0; i < 25; i++){
+            for (int j = 0; j < 9; j++){
                 constTable[i][j] = content[i][j];
                 // std::cout << constTable[i][j] << " ";
             }
@@ -1898,10 +1897,10 @@ public:
 
     void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
         float totallike;
-    	std::vector<float> likevecalpha(41, 0.0);
+    	std::vector<float> likevecalpha(25, 0.0);
     	std::vector<float> likevecc(1, 0.0);
 
-        int lenalpha = 41;
+        int lenalpha = 25;
 
         for(int ip =0; ip < lenalpha; ip++){
             totallike = 0.0;
@@ -1926,7 +1925,7 @@ int main(int argc, char** argv)
 
     // float constTable[41][21];
     // const char* in
-    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablenew.txt";
+    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/table.txt";
 
     // srand (static_cast <unsigned> (time(0)));
 

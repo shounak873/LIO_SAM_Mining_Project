@@ -170,7 +170,7 @@ public:
 
     bool sparseFrame;
 
-    float constTable[41][21];
+    float constTable[25][9];
     float bestalpha = 2.0;
     float bestc = 1.0;
     int minalphaind = 0;
@@ -212,7 +212,7 @@ public:
         pubPath                     = nh.advertise<nav_msgs::Path>("lio_sam/mapping/path", 1);
         pubDistInfo                 = nh.advertise<lio_sam::dist>("lio_sam/mapping/dist_info", 1); // this will publish best c and alpha based on time
 
-        subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 5, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+        subCloud = nh.subscribe<lio_sam::cloud_info>("lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
         subLoop  = nh.subscribe<std_msgs::Float64MultiArray>("lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
@@ -1050,7 +1050,7 @@ public:
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
             // allowing correspondences with larger distances
-            if (pointSearchSqDis[4] < 1.0) {
+            // if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
                 for (int j = 0; j < 5; j++) {
                     cx += laserCloudCornerFromMapDS->points[pointSearchInd[j]].x;
@@ -1125,7 +1125,7 @@ public:
                         // resvecCorner[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
-            } //comment this one
+            // } //comment this one
         }
     }
 
@@ -1154,7 +1154,7 @@ public:
             matX0.setZero();
 
             // allowing correspondences with larger distances
-            if (pointSearchSqDis[4] < 1.0) {
+            // if (pointSearchSqDis[4] < 1.0) {
                 for (int j = 0; j < 5; j++) {
                     matA0(j, 0) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].x;
                     matA0(j, 1) = laserCloudSurfFromMapDS->points[pointSearchInd[j]].y;
@@ -1230,7 +1230,7 @@ public:
                         // resvecSurf[i] = pointSearchSqDis[0]/globalScale;
                     }
                 }
-            }  // comment this one
+            // }  // comment this one
         }
     }
 

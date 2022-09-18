@@ -105,11 +105,11 @@ public:
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLast; // surf feature set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS; // downsampled corner featuer set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS; // downsampled surf featuer set from odoOptimization
-    pcl::ExtractIndices<PointType> extractCorner; //
-    pcl::ExtractIndices<PointType> extractSurf; //
-    pcl::PointIndices::Ptr inliersCorner (new pcl::PointIndices()); // indices with good residuals
-    pcl::PointIndices::Ptr inliersSurf (new pcl::PointIndices());
-    float thresh = 1.0;
+    // pcl::ExtractIndices<PointType> extractCorner; //
+    // pcl::ExtractIndices<PointType> extractSurf; //
+    // pcl::PointIndices::Ptr inliersCorner (new pcl::PointIndices()); // indices with good residuals
+    // pcl::PointIndices::Ptr inliersSurf (new pcl::PointIndices());
+    // float thresh = 1.0;
 
 
     pcl::PointCloud<PointType>::Ptr laserCloudOri;
@@ -250,8 +250,8 @@ public:
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
         // laserCloudCornerIndexFlag.resize(N_SCAN * Horizon_SCAN);
         // laserCloudSurfIndexFlag.resize(N_SCAN * Horizon_SCAN);
-        resvecCorner.resize(N_SCAN * Horizon_SCAN);
-        resvecSurf.resize(N_SCAN * Horizon_SCAN);
+        // resvecCorner.resize(N_SCAN * Horizon_SCAN);
+        // resvecSurf.resize(N_SCAN * Horizon_SCAN);
         // resvec.resize(2*N_SCAN * Horizon_SCAN);
 
 
@@ -312,7 +312,7 @@ public:
             saveKeyFramesAndFactor();
 
             // loop closure
-            // correctPoses();
+            correctPoses();
 
             publishOdometry();
 
@@ -1113,9 +1113,9 @@ public:
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                     }
-                    if (cornerDist > thresh){
-                        inliersCorner->indices.push_back(i);
-                    }
+                    // if (cornerDist > thresh){
+                    //     inliersCorner->indices.push_back(i);
+                    // }
                 }
             } //comment this one
         }
@@ -1218,9 +1218,9 @@ public:
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                     }
-                    if (surfDist > thresh){
-                        inliersSurf->indices.push_back(i);
-                    }
+                    // if (surfDist > thresh){
+                    //     inliersSurf->indices.push_back(i);
+                    // }
                 }
 
             }  // comment this one
@@ -1274,8 +1274,8 @@ public:
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
             // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
-            inliersCorner->indices.clear();
-            inliersSurf->indices.clear();
+            // inliersCorner->indices.clear();
+            // inliersSurf->indices.clear();
 
             return false;
         }
@@ -1380,26 +1380,26 @@ public:
 
         if (deltaR < 0.05 && deltaT < 0.05) {
 
-            // Filter bad residuals
-            extractCorner.setInputCloud(laserCloudCornerLastDS);
-            extractCorner.setIndices(inliersCorner);
-            extractCorner.setNegative(true);
-            extractCorner.filter(*laserCloudCornerLastDS);
-
+            // // Filter bad residuals
+            // extractCorner.setInputCloud(laserCloudCornerLastDS);
+            // extractCorner.setIndices(inliersCorner);
+            // extractCorner.setNegative(true);
+            // extractCorner.filter(*laserCloudCornerLastDS);
             //
-            extractSurf.setInputCloud(laserCloudSurfLastDS);
-            extractSurf.setIndices(inliersSurf);
-            extractSurf.setNegative(true);
-            extractSurf.filter(*laserCloudSurfLastDS);
+            // //
+            // extractSurf.setInputCloud(laserCloudSurfLastDS);
+            // extractSurf.setIndices(inliersSurf);
+            // extractSurf.setNegative(true);
+            // extractSurf.filter(*laserCloudSurfLastDS);
 
-            inliersCorner->indices.clear();
-            inliersSurf->indices.clear();
+            // inliersCorner->indices.clear();
+            // inliersSurf->indices.clear();
 
             return true; // converged
         }
 
-        inliersCorner->indices.clear();
-        inliersSurf->indices.clear();
+        // inliersCorner->indices.clear();
+        // inliersSurf->indices.clear();
 
         return false; // keep optimizing
     }
@@ -1650,7 +1650,7 @@ public:
         // addGPSFactor();
 
         // loop factor
-        // addLoopFactor();
+        addLoopFactor();
 
         // cout << "****************************************************" << endl;
         // gtSAMgraph.print("GTSAM Graph:\n");

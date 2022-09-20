@@ -346,6 +346,6 @@ float gemancost( float r, float mu){
 
 float gemancostWeight(float r, float mu){
 
-    return pow(mu,2)/(mu + pow(r,2));
+    return pow(mu,2)/(pow((mu + pow(r,2)),2));
 }
 #endif

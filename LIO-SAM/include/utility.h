@@ -367,4 +367,14 @@ float robustcostWeight(float r, float c, float alpha){
     }
 	return weight;
 }
+
+float hubercostWeight(float r, float c){
+    if (std::abs(r) <= c){
+        return 1;
+    }
+    else{
+        return std::abs(c/r);
+    }
+}
+
 #endif

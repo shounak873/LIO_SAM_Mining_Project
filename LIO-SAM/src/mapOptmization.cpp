@@ -1348,7 +1348,14 @@ public:
             matA.at<float>(i, 5) = coeff.y;
             matB.at<float>(i, 0) = -coeff.intensity;
 
-            weights.at<float>(i,i) = robustcostWeight(resvec[i], cB, alphaB);
+            float weight = robustcostWeight(resvec[i], cB, alphaB);
+            float huberweight = hubercostWeight(resvec[i],cB);
+
+            if (huberweight < weight){
+                weight = huberweight;
+            }
+
+            weights.at<float>(i,i) = weight;
         }
 
         cv::transpose(matA, matAt);

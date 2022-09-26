@@ -1405,7 +1405,7 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    if (iterCount % 5 == 0){
+                    if ((iterCount % 5 == 0)&&(mu > 1.0)){
                         mu = mu/2;
                     }
 

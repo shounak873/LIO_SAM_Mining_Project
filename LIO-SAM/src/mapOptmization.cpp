@@ -105,12 +105,10 @@ public:
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLast; // surf feature set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS; // downsampled corner featuer set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS; // downsampled surf featuer set from odoOptimization
-    // pcl::ExtractIndices<PointType> extractCorner; //
-    // pcl::ExtractIndices<PointType> extractSurf; //
-    // pcl::PointIndices::Ptr inliersCorner (new pcl::PointIndices()); // indices with good residuals
-    // pcl::PointIndices::Ptr inliersSurf (new pcl::PointIndices());
-    // float thresh = 1.0;
 
+
+    std::vector<int> cornerOutlierinds;
+    std::vector<int> surfOutlierinds;
 
     pcl::PointCloud<PointType>::Ptr laserCloudOri;
     pcl::PointCloud<PointType>::Ptr coeffSel;
@@ -168,7 +166,7 @@ public:
     Eigen::Affine3f incrementalOdometryAffineFront;
     Eigen::Affine3f incrementalOdometryAffineBack;
 
-    // cv::Mat residuals(laserCloudSelNum, 1, CV_32F); // this has to be a variable length cv::mat
+
     lio_sam::dist dist_info;
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
@@ -178,8 +176,6 @@ public:
     float timing;
     int iter;
 
-
-    // std::vector<float> c{1.0};
 
     mapOptimization()
     {
@@ -229,11 +225,6 @@ public:
         kdtreeSurroundingKeyPoses.reset(new pcl::KdTreeFLANN<PointType>());
         kdtreeHistoryKeyPoses.reset(new pcl::KdTreeFLANN<PointType>());
 
-        // extractSurf.reset(new pcl::ExtractIndices<PointType>());
-        // extractCorner.reset(new pcl::ExtractIndices<PointType>());
-        // inliersCorner.reset(new pcl::PointIndices());
-        // inliersSurf.reset(new pcl::PointIndices());
-
         laserCloudCornerLast.reset(new pcl::PointCloud<PointType>()); // corner feature set from odoOptimization
         laserCloudSurfLast.reset(new pcl::PointCloud<PointType>()); // surf feature set from odoOptimization
         laserCloudCornerLastDS.reset(new pcl::PointCloud<PointType>()); // downsampled corner featuer set from odoOptimization
@@ -248,17 +239,11 @@ public:
         laserCloudOriSurfVec.resize(N_SCAN * Horizon_SCAN);
         coeffSelSurfVec.resize(N_SCAN * Horizon_SCAN);
         laserCloudOriSurfFlag.resize(N_SCAN * Horizon_SCAN);
-        // laserCloudCornerIndexFlag.resize(N_SCAN * Horizon_SCAN);
-        // laserCloudSurfIndexFlag.resize(N_SCAN * Horizon_SCAN);
-        // resvecCorner.resize(N_SCAN * Horizon_SCAN);
-        // resvecSurf.resize(N_SCAN * Horizon_SCAN);
-        // resvec.resize(2*N_SCAN * Horizon_SCAN);
 
 
         std::fill(laserCloudOriCornerFlag.begin(), laserCloudOriCornerFlag.end(), false);
         std::fill(laserCloudOriSurfFlag.begin(), laserCloudOriSurfFlag.end(), false);
-        // std::fill(laserCloudCornerIndexFlag.begin(), laserCloudCornerIndexFlag.end(), false);
-        // std::fill(laserCloudSurfIndexFlag.begin(), laserCloudSurfIndexFlag.end(), false);
+
 
         laserCloudCornerFromMap.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
@@ -1017,12 +1002,14 @@ public:
 
     void updatePointAssociateToMap()
     {
+        std::cout <<" Running updatePointAssociateToMap() " << std::endl;
         transPointAssociateToMap = trans2Affine3f(transformTobeMapped);
+        std::cout <<" Ending updatePointAssociateToMap() " << std::endl;
     }
 
-    void cornerOptimization()
+    void cornerOptimization(bool remove)
     {
-        // std::cout << "starting corner optimization .. " << std::endl;
+        std::cout << "starting corner optimization .. " << std::endl;
 
         updatePointAssociateToMap();
 
@@ -1034,13 +1021,16 @@ public:
             std::vector<float> pointSearchSqDis;
 
             pointOri = laserCloudCornerLastDS->points[i];
+            std::cout << " pointOri " << pointOri << std::endl;
             pointAssociateToMap(&pointOri, &pointSel);
+
             kdtreeCornerFromMap->nearestKSearch(pointSel, 5, pointSearchInd, pointSearchSqDis);
 
             cv::Mat matA1(3, 3, CV_32F, cv::Scalar::all(0));
             cv::Mat matD1(1, 3, CV_32F, cv::Scalar::all(0));
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
+            std::cout << " Neighbour distances " << std::endl;
             // allowing correspondences with larger distances
             if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
@@ -1066,6 +1056,8 @@ public:
                 matA1.at<float>(0, 0) = a11; matA1.at<float>(0, 1) = a12; matA1.at<float>(0, 2) = a13;
                 matA1.at<float>(1, 0) = a12; matA1.at<float>(1, 1) = a22; matA1.at<float>(1, 2) = a23;
                 matA1.at<float>(2, 0) = a13; matA1.at<float>(2, 1) = a23; matA1.at<float>(2, 2) = a33;
+
+                std::cout<< "Eigen value decomposition" << std::endl;
 
                 cv::eigen(matA1, matD1, matV1);
 
@@ -1102,28 +1094,31 @@ public:
 
                     float s = 1 - 0.9 * fabs(ld2);
 
+                    std::cout << "s value is " << s << std::endl;
+
                     coeff.x = s * la;
                     coeff.y = s * lb;
                     coeff.z = s * lc;
                     coeff.intensity = s * ld2;
 
                     if (s > 0.1) {
-                        // std::cout << " s is greater than 0.1 " << std::endl;
+                        std::cout << " s is greater than 0.1 " << std::endl;
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                     }
-                    // if (cornerDist > thresh){
-                    //     inliersCorner->indices.push_back(i);
-                    // }
+                    else if ((remove==true) && (s < 0.1)){
+                        cornerOutlierinds.push_back(i);
+                    }
+
                 }
             } //comment this one
         }
     }
 
-    void surfOptimization()
+    void surfOptimization(bool remove)
     {
-        // std::cout << "starting surf optimization .. " << std::endl;
+        std::cout << "starting surf optimization .. " << std::endl;
         updatePointAssociateToMap();
 
         #pragma omp parallel for num_threads(numberOfCores)
@@ -1218,9 +1213,10 @@ public:
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                     }
-                    // if (surfDist > thresh){
-                    //     inliersSurf->indices.push_back(i);
-                    // }
+                    else if (remove && (s < 0.1)){
+                        surfOutlierinds.push_back(i);
+                    }
+
                 }
 
             }  // comment this one
@@ -1229,7 +1225,7 @@ public:
 
     void combineOptimizationCoeffs()
     {
-        // std::cout << " starting combine optimization " << std::endl;
+        std::cout << " starting combine optimization " << std::endl;
         // combine corner coeffs
         for (int i = 0; i < laserCloudCornerLastDSNum; ++i){
             if (laserCloudOriCornerFlag[i] == true){
@@ -1252,7 +1248,7 @@ public:
 
     bool LMOptimization(int iterCount)
     {
-        // std::cout << "starting LM optimization .." << std::endl;
+        std::cout << "starting LM optimization .." << std::endl;
         // std::cout << "alpha input is " << alphaB << " , " << " c input is " << cB << std::endl;
         // This optimization is from the original loam_velodyne by Ji Zhang, need to cope with coordinate transformation
         // lidar <- camera      ---     camera <- lidar
@@ -1274,9 +1270,6 @@ public:
         int laserCloudSelNum = laserCloudOri->size();
         if (laserCloudSelNum < 50) {
             // std::cout << "not enough features .. not doing NLS this iteration " << std::endl;
-            // inliersCorner->indices.clear();
-            // inliersSurf->indices.clear();
-
             return false;
         }
 
@@ -1376,30 +1369,10 @@ public:
                             pow(matX.at<float>(4, 0) * 100, 2) +
                             pow(matX.at<float>(5, 0) * 100, 2));
 
-        resvec.clear();
 
         if (deltaR < 0.05 && deltaT < 0.05) {
-
-            // // Filter bad residuals
-            // extractCorner.setInputCloud(laserCloudCornerLastDS);
-            // extractCorner.setIndices(inliersCorner);
-            // extractCorner.setNegative(true);
-            // extractCorner.filter(*laserCloudCornerLastDS);
-            //
-            // //
-            // extractSurf.setInputCloud(laserCloudSurfLastDS);
-            // extractSurf.setIndices(inliersSurf);
-            // extractSurf.setNegative(true);
-            // extractSurf.filter(*laserCloudSurfLastDS);
-
-            // inliersCorner->indices.clear();
-            // inliersSurf->indices.clear();
-
             return true; // converged
         }
-
-        // inliersCorner->indices.clear();
-        // inliersSurf->indices.clear();
 
         return false; // keep optimizing
     }
@@ -1407,7 +1380,7 @@ public:
     void scan2MapOptimization()
     {
         auto start = high_resolution_clock::now();
-        // std::cout << " scan2MapOptimization function started " << std::endl;
+        std::cout << " scan2MapOptimization function started " << std::endl;
         if (cloudKeyPoses3D->points.empty()){
             // std::cout << "Empty key pose vector in scan2MapOptimization " <<std::endl;
             return;
@@ -1423,13 +1396,14 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
+            bool remove = false;
             for (int iterCount = 0; iterCount < 30; iterCount++)
             {
                 laserCloudOri->clear();
                 coeffSel->clear();
 
-                cornerOptimization();
-                surfOptimization();
+                cornerOptimization(remove);
+                surfOptimization(remove);
 
                 combineOptimizationCoeffs();
 
@@ -1687,14 +1661,6 @@ public:
         thisPose3D.intensity = cloudKeyPoses3D->size(); // this can be used as index
         cloudKeyPoses3D->push_back(thisPose3D);
 
-        // thisPose3D.x = transformTobeMapped[3];
-        // thisPose3D.y = transformTobeMapped[4];
-        // thisPose3D.z = transformTobeMapped[5];
-        // thisPose3D.intensity = cloudKeyPoses3D->size(); // this can be used as index
-        // cloudKeyPoses3D->push_back(thisPose3D);
-        // std::cout << "Added keypose 3D " << transformTobeMapped[3] << ", " << transformTobeMapped[4] << " , " << transformTobeMapped[5] << std::endl;
-        // std::cout << "Added keypose 3D " << thisPose3D.x << ", " << thisPose3D.y << " , " << thisPose3D.z << std::endl;
-
 
         thisPose6D.x = thisPose3D.x;
         thisPose6D.y = thisPose3D.y;
@@ -1706,9 +1672,6 @@ public:
         thisPose6D.time = timeLaserInfoCur;
         cloudKeyPoses6D->push_back(thisPose6D);
 
-        // cout << "****************************************************" << endl;
-        // cout << "Pose covariance:" << endl;
-        // cout << isam->marginalCovariance(isamCurrentEstimate.size()-1) << endl << endl;
         poseCovariance = isam->marginalCovariance(isamCurrentEstimate.size()-1);
 
         // save updated transform
@@ -1718,6 +1681,10 @@ public:
         transformTobeMapped[3] = latestEstimate.translation().x();
         transformTobeMapped[4] = latestEstimate.translation().y();
         transformTobeMapped[5] = latestEstimate.translation().z();
+
+
+        // remove large residual points from laserCloudCornerLastDS and laserCloudSurfLastDS
+        // remove_largeRes();
 
         // save all the received edge and surf points
         pcl::PointCloud<PointType>::Ptr thisCornerKeyFrame(new pcl::PointCloud<PointType>());
@@ -1894,6 +1861,43 @@ public:
             globalPath.header.frame_id = odometryFrame;
             pubPath.publish(globalPath);
         }
+    }
+
+    void remove_largeRes()
+    {
+        bool remove = true;
+        cornerOptimization(remove);
+        surfOptimization(remove);
+
+        pcl::ExtractIndices<PointType> extractCorner;
+        pcl::ExtractIndices<PointType> extractSurf;
+
+        pcl::PointIndices::Ptr outliersCorner (new pcl::PointIndices());
+        pcl::PointIndices::Ptr outliersSurf (new pcl::PointIndices());
+
+        for (int i =0; i < cornerOutlierinds.size();i++){
+            outliersCorner->indices.push_back(cornerOutlierinds[i]);
+        }
+
+        for (int i =0; i < surfOutlierinds.size();i++){
+            outliersSurf->indices.push_back(cornerOutlierinds[i]);
+        }
+
+        // Filter bad residuals
+        extractCorner.setInputCloud(laserCloudCornerLastDS);
+        extractCorner.setIndices(outliersCorner);
+        extractCorner.setNegative(true);
+        extractCorner.filter(*laserCloudCornerLastDS);
+        //
+        // //
+        extractSurf.setInputCloud(laserCloudSurfLastDS);
+        extractSurf.setIndices(outliersSurf);
+        extractSurf.setNegative(true);
+        extractSurf.filter(*laserCloudSurfLastDS);
+
+        cornerOutlierinds.clear();
+        surfOutlierinds.clear();
+
     }
 
 };

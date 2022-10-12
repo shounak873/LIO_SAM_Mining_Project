@@ -176,6 +176,11 @@ public:
     float timing;
     int iter;
 
+    pcl::ExtractIndices<PointType> extractCorner;
+    pcl::ExtractIndices<PointType> extractSurf;
+
+    pcl::PointIndices::Ptr outliersCorner;
+    pcl::PointIndices::Ptr outliersSurf;
 
     mapOptimization()
     {
@@ -252,6 +257,9 @@ public:
 
         kdtreeCornerFromMap.reset(new pcl::KdTreeFLANN<PointType>());
         kdtreeSurfFromMap.reset(new pcl::KdTreeFLANN<PointType>());
+
+        outliersCorner.reset(new pcl::PointIndices());
+        outliersSurf.reset(new pcl::PointIndices());
 
         for (int i = 0; i < 6; ++i){
             transformTobeMapped[i] = 0;
@@ -1002,14 +1010,12 @@ public:
 
     void updatePointAssociateToMap()
     {
-        std::cout <<" Running updatePointAssociateToMap() " << std::endl;
         transPointAssociateToMap = trans2Affine3f(transformTobeMapped);
-        std::cout <<" Ending updatePointAssociateToMap() " << std::endl;
     }
 
     void cornerOptimization(bool remove)
     {
-        std::cout << "starting corner optimization .. " << std::endl;
+        // std::cout << "starting corner optimization .. " << std::endl;
 
         updatePointAssociateToMap();
 
@@ -1021,7 +1027,7 @@ public:
             std::vector<float> pointSearchSqDis;
 
             pointOri = laserCloudCornerLastDS->points[i];
-            std::cout << " pointOri " << pointOri << std::endl;
+            // std::cout << " pointOri " << pointOri << std::endl;
             pointAssociateToMap(&pointOri, &pointSel);
 
             kdtreeCornerFromMap->nearestKSearch(pointSel, 5, pointSearchInd, pointSearchSqDis);
@@ -1030,7 +1036,7 @@ public:
             cv::Mat matD1(1, 3, CV_32F, cv::Scalar::all(0));
             cv::Mat matV1(3, 3, CV_32F, cv::Scalar::all(0));
 
-            std::cout << " Neighbour distances " << std::endl;
+            // std::cout << " Neighbour distances " << std::endl;
             // allowing correspondences with larger distances
             if (pointSearchSqDis[4] < 1.0) {
                 float cx = 0, cy = 0, cz = 0;
@@ -1057,7 +1063,7 @@ public:
                 matA1.at<float>(1, 0) = a12; matA1.at<float>(1, 1) = a22; matA1.at<float>(1, 2) = a23;
                 matA1.at<float>(2, 0) = a13; matA1.at<float>(2, 1) = a23; matA1.at<float>(2, 2) = a33;
 
-                std::cout<< "Eigen value decomposition" << std::endl;
+                // std::cout<< "Eigen value decomposition" << std::endl;
 
                 cv::eigen(matA1, matD1, matV1);
 
@@ -1094,20 +1100,22 @@ public:
 
                     float s = 1 - 0.9 * fabs(ld2);
 
-                    std::cout << "s value is " << s << std::endl;
+                    // std::cout << "s value is " << s << std::endl;
+                    if(remove == false){
+                        coeff.x = s * la;
+                        coeff.y = s * lb;
+                        coeff.z = s * lc;
+                        coeff.intensity = s * ld2;
 
-                    coeff.x = s * la;
-                    coeff.y = s * lb;
-                    coeff.z = s * lc;
-                    coeff.intensity = s * ld2;
-
-                    if (s > 0.1) {
-                        std::cout << " s is greater than 0.1 " << std::endl;
-                        laserCloudOriCornerVec[i] = pointOri;
-                        coeffSelCornerVec[i] = coeff;
-                        laserCloudOriCornerFlag[i] = true;
+                        if (s > 0.1) {
+                            // std::cout << " s is greater than 0.1 " << std::endl;
+                            laserCloudOriCornerVec[i] = pointOri;
+                            coeffSelCornerVec[i] = coeff;
+                            laserCloudOriCornerFlag[i] = true;
+                        }
                     }
-                    else if ((remove==true) && (s < 0.1)){
+
+                    if ((remove==true) && (s <= 0.9)){
                         cornerOutlierinds.push_back(i);
                     }
 
@@ -1118,7 +1126,7 @@ public:
 
     void surfOptimization(bool remove)
     {
-        std::cout << "starting surf optimization .. " << std::endl;
+        // std::cout << "starting surf optimization .. " << std::endl;
         updatePointAssociateToMap();
 
         #pragma omp parallel for num_threads(numberOfCores)
@@ -1174,46 +1182,21 @@ public:
                     float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel.x * pointSel.x
                             + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
 
-                    coeff.x = s * pa;
-                    coeff.y = s * pb;
-                    coeff.z = s * pc;
-                    coeff.intensity = s * pd2;
+                    if (remove == false){
+                        coeff.x = s * pa;
+                        coeff.y = s * pb;
+                        coeff.z = s * pc;
+                        coeff.intensity = s * pd2;
 
-                    //calculate distance between surface features
-                    float xs = pointSel.x;
-                    float ys = pointSel.y;
-                    float zs = pointSel.z;
-
-                    float x0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].x;
-                    float y0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].y;
-                    float z0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].z;
-
-                    float x1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].x;
-                    float y1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].y;
-                    float z1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].z;
-
-                    float x2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].x;
-                    float y2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].y;
-                    float z2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].z;
-
-                    float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                    + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                    + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
-
-                    float a022 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                    + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                    + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
-                                    + (xs - x0)*(xs -x0) + (ys - y0)*(ys - y0) + (zs - z0)*(zs - z0));
-
-                    float surfDist = a022 / a012; // equation 11 in LIO-SAM paper
-
-                    if (s > 0.1) {
-                        // std::cout << " s is greater than 0.1 " << std::endl;
-                        laserCloudOriSurfVec[i] = pointOri;
-                        coeffSelSurfVec[i] = coeff;
-                        laserCloudOriSurfFlag[i] = true;
+                        if (s > 0.1) {
+                            // std::cout << " s is greater than 0.1 " << std::endl;
+                            laserCloudOriSurfVec[i] = pointOri;
+                            coeffSelSurfVec[i] = coeff;
+                            laserCloudOriSurfFlag[i] = true;
+                        }
                     }
-                    else if (remove && (s < 0.1)){
+
+                    if ((remove==true) && (s <= 0.9)){
                         surfOutlierinds.push_back(i);
                     }
 
@@ -1225,7 +1208,7 @@ public:
 
     void combineOptimizationCoeffs()
     {
-        std::cout << " starting combine optimization " << std::endl;
+        // std::cout << " starting combine optimization " << std::endl;
         // combine corner coeffs
         for (int i = 0; i < laserCloudCornerLastDSNum; ++i){
             if (laserCloudOriCornerFlag[i] == true){
@@ -1248,7 +1231,7 @@ public:
 
     bool LMOptimization(int iterCount)
     {
-        std::cout << "starting LM optimization .." << std::endl;
+        // std::cout << "starting LM optimization .." << std::endl;
         // std::cout << "alpha input is " << alphaB << " , " << " c input is " << cB << std::endl;
         // This optimization is from the original loam_velodyne by Ji Zhang, need to cope with coordinate transformation
         // lidar <- camera      ---     camera <- lidar
@@ -1380,23 +1363,21 @@ public:
     void scan2MapOptimization()
     {
         auto start = high_resolution_clock::now();
-        std::cout << " scan2MapOptimization function started " << std::endl;
+        // std::cout << " scan2MapOptimization function started " << std::endl;
         if (cloudKeyPoses3D->points.empty()){
             // std::cout << "Empty key pose vector in scan2MapOptimization " <<std::endl;
             return;
         }
 
-        // std::fill(resvecCorner.begin(), resvecCorner.end(), 0.0);
-        // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
-        resvec.clear();
         bool converged = false;
+        bool remove = false;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
             // std::cout << " optimization loop started .. " << std::endl;
-            bool remove = false;
+
             for (int iterCount = 0; iterCount < 30; iterCount++)
             {
                 laserCloudOri->clear();
@@ -1411,6 +1392,7 @@ public:
                     std::cout << " converged with itercount .. "  << iterCount << std::endl;
                     converged = true;
                     iter  = iterCount;
+                    // remove_largeRes();
                     break;
                 }
             }
@@ -1614,9 +1596,10 @@ public:
 
     void saveKeyFramesAndFactor()
     {
-        if (saveFrame() == false)
+        if (saveFrame() == false){
+            // remove_largeRes();
             return;
-
+        }
         // odom factor
         addOdomFactor();
 
@@ -1866,14 +1849,11 @@ public:
     void remove_largeRes()
     {
         bool remove = true;
+        laserCloudOri->clear();
+        coeffSel->clear();
+
         cornerOptimization(remove);
         surfOptimization(remove);
-
-        pcl::ExtractIndices<PointType> extractCorner;
-        pcl::ExtractIndices<PointType> extractSurf;
-
-        pcl::PointIndices::Ptr outliersCorner (new pcl::PointIndices());
-        pcl::PointIndices::Ptr outliersSurf (new pcl::PointIndices());
 
         for (int i =0; i < cornerOutlierinds.size();i++){
             outliersCorner->indices.push_back(cornerOutlierinds[i]);
@@ -1889,11 +1869,13 @@ public:
         extractCorner.setNegative(true);
         extractCorner.filter(*laserCloudCornerLastDS);
         //
-        // //
         extractSurf.setInputCloud(laserCloudSurfLastDS);
         extractSurf.setIndices(outliersSurf);
         extractSurf.setNegative(true);
         extractSurf.filter(*laserCloudSurfLastDS);
+
+        outliersCorner->indices.clear();
+        outliersSurf->indices.clear();
 
         cornerOutlierinds.clear();
         surfOutlierinds.clear();

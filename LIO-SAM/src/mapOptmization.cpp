@@ -104,7 +104,9 @@ public:
     pcl::PointCloud<PointType>::Ptr laserCloudCornerLast; // corner feature set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLast; // surf feature set from odoOptimization
     pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS; // downsampled corner featuer set from odoOptimization
+    pcl::PointCloud<PointType>::Ptr laserCloudCornerLastDS_copy;
     pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS; // downsampled surf featuer set from odoOptimization
+    pcl::PointCloud<PointType>::Ptr laserCloudSurfLastDS_copy;
 
 
     std::vector<int> cornerOutlierinds;
@@ -234,6 +236,8 @@ public:
         laserCloudSurfLast.reset(new pcl::PointCloud<PointType>()); // surf feature set from odoOptimization
         laserCloudCornerLastDS.reset(new pcl::PointCloud<PointType>()); // downsampled corner featuer set from odoOptimization
         laserCloudSurfLastDS.reset(new pcl::PointCloud<PointType>()); // downsampled surf featuer set from odoOptimization
+        laserCloudCornerLastDS_copy.reset(new pcl::PointCloud<PointType>());
+        laserCloudSurfLastDS_copy.reset(new pcl::PointCloud<PointType>());
 
         laserCloudOri.reset(new pcl::PointCloud<PointType>());
         coeffSel.reset(new pcl::PointCloud<PointType>());
@@ -1115,12 +1119,15 @@ public:
                         }
                     }
 
-                    if ((remove==true) && (s <= 0.9)){
-                        cornerOutlierinds.push_back(i);
-                    }
+                    // if ((remove==true) && (s <= 0.8)){
+                    //     cornerOutlierinds.push_back(i);
+                    // }
 
                 }
             } //comment this one
+            if ((remove==true)&& (pointSearchSqDis[4] > 0.8)){
+                cornerOutlierinds.push_back(i);
+            }
         }
     }
 
@@ -1196,13 +1203,16 @@ public:
                         }
                     }
 
-                    if ((remove==true) && (s <= 0.9)){
-                        surfOutlierinds.push_back(i);
-                    }
+                    // if ((remove==true) && (s <= 0.8)){
+                    //     surfOutlierinds.push_back(i);
+                    // }
 
                 }
 
             }  // comment this one
+            if ((remove==true) && (pointSearchSqDis[4] > 0.6)){
+                surfOutlierinds.push_back(i);
+            }
         }
     }
 
@@ -1392,7 +1402,7 @@ public:
                     std::cout << " converged with itercount .. "  << iterCount << std::endl;
                     converged = true;
                     iter  = iterCount;
-                    // remove_largeRes();
+                    remove_largeRes();
                     break;
                 }
             }
@@ -1666,9 +1676,6 @@ public:
         transformTobeMapped[5] = latestEstimate.translation().z();
 
 
-        // remove large residual points from laserCloudCornerLastDS and laserCloudSurfLastDS
-        // remove_largeRes();
-
         // save all the received edge and surf points
         pcl::PointCloud<PointType>::Ptr thisCornerKeyFrame(new pcl::PointCloud<PointType>());
         pcl::PointCloud<PointType>::Ptr thisSurfKeyFrame(new pcl::PointCloud<PointType>());
@@ -1824,8 +1831,8 @@ public:
         {
             pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
             PointTypePose thisPose6D = trans2PointTypePose(transformTobeMapped);
-            *cloudOut += *transformPointCloud(laserCloudCornerLastDS,  &thisPose6D);
-            *cloudOut += *transformPointCloud(laserCloudSurfLastDS,    &thisPose6D);
+            *cloudOut += *transformPointCloud(laserCloudCornerLastDS_copy,  &thisPose6D);
+            *cloudOut += *transformPointCloud(laserCloudSurfLastDS_copy,    &thisPose6D);
             publishCloud(&pubRecentKeyFrame, cloudOut, timeLaserInfoStamp, odometryFrame);
         }
         // publish registered high-res raw cloud
@@ -1855,6 +1862,9 @@ public:
         cornerOptimization(remove);
         surfOptimization(remove);
 
+        std::cout << "Corners removed " << cornerOutlierinds.size() << std::endl;
+        std::cout << "Surf removed " << surfOutlierinds.size() << std::endl;
+
         for (int i =0; i < cornerOutlierinds.size();i++){
             outliersCorner->indices.push_back(cornerOutlierinds[i]);
         }
@@ -1864,15 +1874,21 @@ public:
         }
 
         // Filter bad residuals
-        extractCorner.setInputCloud(laserCloudCornerLastDS);
+        laserCloudCornerLastDS_copy->clear();
+        laserCloudSurfLastDS_copy->clear();
+
+        pcl::copyPointCloud(*laserCloudCornerLastDS, *laserCloudCornerLastDS_copy);
+        pcl::copyPointCloud(*laserCloudSurfLastDS, *laserCloudSurfLastDS_copy);
+
+        extractCorner.setInputCloud(laserCloudCornerLastDS_copy);
         extractCorner.setIndices(outliersCorner);
         extractCorner.setNegative(true);
-        extractCorner.filter(*laserCloudCornerLastDS);
+        extractCorner.filter(*laserCloudCornerLastDS_copy);
         //
-        extractSurf.setInputCloud(laserCloudSurfLastDS);
+        extractSurf.setInputCloud(laserCloudSurfLastDS_copy);
         extractSurf.setIndices(outliersSurf);
         extractSurf.setNegative(true);
-        extractSurf.filter(*laserCloudSurfLastDS);
+        extractSurf.filter(*laserCloudSurfLastDS_copy);
 
         outliersCorner->indices.clear();
         outliersSurf->indices.clear();

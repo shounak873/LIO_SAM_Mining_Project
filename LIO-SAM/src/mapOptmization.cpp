@@ -1115,7 +1115,7 @@ public:
                     coeff.z = s * lc;
                     coeff.intensity = s * ld2;
 
-                    if (s > 0.1) {
+                    // if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;
                         laserCloudOriCornerVec[i] = pointOri;
                         coeffSelCornerVec[i] = coeff;
@@ -1123,7 +1123,7 @@ public:
                         // resvec.push_back(cornerDist);
                         resvecCorner[i] = cornerDist;
                         // resvecCorner[i] = pointSearchSqDis[0]/globalScale;
-                    }
+                    // }
                 }
             } //comment this one
         }
@@ -1192,35 +1192,10 @@ public:
                     coeff.z = s * pc;
                     coeff.intensity = s * pd2;
 
-                    //calculate distance between surface features
-                    float xs = pointSel.x;
-                    float ys = pointSel.y;
-                    float zs = pointSel.z;
+                    float surfDist = pd2 / sqrt(sqrt(pointSel.x * pointSel.x
+                            + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
 
-                    float x0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].x;
-                    float y0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].y;
-                    float z0 = laserCloudSurfFromMapDS->points[pointSearchInd[0]].z;
-
-                    float x1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].x;
-                    float y1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].y;
-                    float z1 = laserCloudSurfFromMapDS->points[pointSearchInd[2]].z;
-
-                    float x2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].x;
-                    float y2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].y;
-                    float z2 = laserCloudSurfFromMapDS->points[pointSearchInd[4]].z;
-
-                    float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                    + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                    + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
-
-                    float a022 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                    + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1)) * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                    + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)) * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
-                                    + (xs - x0)*(xs -x0) + (ys - y0)*(ys - y0) + (zs - z0)*(zs - z0));
-
-                    float surfDist = a022 / a012; // equation 11 in LIO-SAM paper
-
-                    if (s > 0.1) {
+                    // if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;
                         laserCloudOriSurfVec[i] = pointOri;
                         coeffSelSurfVec[i] = coeff;
@@ -1228,7 +1203,7 @@ public:
                         // resvec.push_back(surfDist);
                         resvecSurf[i] = surfDist;
                         // resvecSurf[i] = pointSearchSqDis[0]/globalScale;
-                    }
+                    // }
                 }
             }  // comment this one
         }

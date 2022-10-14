@@ -1113,9 +1113,6 @@ public:
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                     }
-                    // if (cornerDist > thresh){
-                    //     inliersCorner->indices.push_back(i);
-                    // }
                 }
             } //comment this one
         }
@@ -1218,9 +1215,6 @@ public:
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                     }
-                    // if (surfDist > thresh){
-                    //     inliersSurf->indices.push_back(i);
-                    // }
                 }
 
             }  // comment this one
@@ -1380,26 +1374,8 @@ public:
 
         if (deltaR < 0.05 && deltaT < 0.05) {
 
-            // // Filter bad residuals
-            // extractCorner.setInputCloud(laserCloudCornerLastDS);
-            // extractCorner.setIndices(inliersCorner);
-            // extractCorner.setNegative(true);
-            // extractCorner.filter(*laserCloudCornerLastDS);
-            //
-            // //
-            // extractSurf.setInputCloud(laserCloudSurfLastDS);
-            // extractSurf.setIndices(inliersSurf);
-            // extractSurf.setNegative(true);
-            // extractSurf.filter(*laserCloudSurfLastDS);
-
-            // inliersCorner->indices.clear();
-            // inliersSurf->indices.clear();
-
             return true; // converged
         }
-
-        // inliersCorner->indices.clear();
-        // inliersSurf->indices.clear();
 
         return false; // keep optimizing
     }

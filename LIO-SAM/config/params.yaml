@@ -1,8 +1,8 @@
 lio_sam:
 
   # Topics
-  pointCloudTopic: "/velodyne_points"
-  imuTopic: "/imu/data_updated"                        # IMU data
+  pointCloudTopic: "points_raw"
+  imuTopic: "imu_raw"                        # IMU data
   odomTopic: "odometry/imu"                   # IMU pre-preintegration odometry, same frequency as IMU
   gpsTopic: "odometry/gps"                   # GPS odometry topic from navsat, see module_navsat.launch file
 
@@ -32,7 +32,7 @@ lio_sam:
 
   sensor: velodyne                           # lidar sensor type, either 'velodyne' or 'ouster'
   # N_SCAN: 16 #default
-  N_SCAN: 32                             # number of lidar channel (i.e., 16, 32, 64, 128)
+  N_SCAN: 16                            # number of lidar channel (i.e., 16, 32, 64, 128)
   Horizon_SCAN: 1800                          # lidar horizontal resolution (Velodyne:1800, Ouster:512,1024,2048)
   downsampleRate: 1                         # default: 1. Downsample your data if too many points. i.e., 16 = 64 / 4, 16 = 16 / 1
   lidarMinRange: 1.0                          # default: 1.0, minimum lidar range to be used
@@ -47,22 +47,22 @@ lio_sam:
   imuRPYWeight: 0.01
 
   # Extrinsics (lidar -> IMU)
-  # extrinsicTrans: [0.0, 0.0, 0.0]
-  # extrinsicRot: [-1, 0, 0,
-  #                 0, 1, 0,
-  #                 0, 0, -1]
-  # extrinsicRPY: [0,  1, 0,
-  #                -1, 0, 0,
-  #                 0, 0, 1]
-  extrinsicTrans: [0.23, 0.0, -0.95]
-
-  extrinsicRot: [0.0, 1.0 , 0.0,
-                 -1.0, 0.0, 0.0,
-                 0.0, 0.0, 1.0]
-
-  extrinsicRPY: [0.0, 1.0 , 0.0,
-                 -1.0, 0.0, 0.0,
-                 0.0, 0.0, 1.0]
+  extrinsicTrans: [0.0, 0.0, 0.0]
+  extrinsicRot: [-1, 0, 0,
+                  0, 1, 0,
+                  0, 0, -1]
+  extrinsicRPY: [0, -1, 0,
+                 1, 0, 0,
+                  0, 0, 1]
+  # extrinsicTrans: [0.23, 0.0, -0.95]
+  #
+  # extrinsicRot: [0.0, 1.0 , 0.0,
+  #                -1.0, 0.0, 0.0,
+  #                0.0, 0.0, 1.0]
+  #
+  # extrinsicRPY: [0.0, 1.0 , 0.0,
+  #                -1.0, 0.0, 0.0,
+  #                0.0, 0.0, 1.0]
   # extrinsicRot: [1, 0, 0,
   #                 0, 1, 0,
   #                 0, 0, 1]

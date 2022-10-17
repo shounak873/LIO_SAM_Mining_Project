@@ -1110,10 +1110,10 @@ public:
 
                     float s = 1 - 0.9 * fabs(ld2);
 
-                    coeff.x = s * la;
-                    coeff.y = s * lb;
-                    coeff.z = s * lc;
-                    coeff.intensity = s * ld2;
+                    coeff.x = la;
+                    coeff.y = lb;
+                    coeff.z = lc;
+                    coeff.intensity = ld2;
 
                     // if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;
@@ -1184,16 +1184,18 @@ public:
                 if (planeValid) {
                     float pd2 = pa * pointSel.x + pb * pointSel.y + pc * pointSel.z + pd;
 
-                    float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel.x * pointSel.x
-                            + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
+                    float s = 1 - 0.9 * fabs(pd2);
+                    // / sqrt(sqrt(pointOri.x * pointOri.x
+                    //         + pointOri.y * pointOri.y + pointOri.z * pointOri.z));
 
-                    coeff.x = s * pa;
-                    coeff.y = s * pb;
-                    coeff.z = s * pc;
-                    coeff.intensity = s * pd2;
+                    coeff.x = pa;
+                    coeff.y = pb;
+                    coeff.z = pc;
+                    coeff.intensity = pd2;
 
-                    float surfDist = pd2 / sqrt(sqrt(pointSel.x * pointSel.x
-                            + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
+                    float surfDist = pd2;
+                     // sqrt(sqrt(pointOri.x * pointOri.x
+                     //        + pointOri.y * pointOri.y + pointOri.z * pointOri.z));
 
                     // if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;
@@ -1326,9 +1328,9 @@ public:
             float weight = robustcostWeight(resvec[i], cB, alphaB);
             float huberweight = hubercostWeight(resvec[i],cB);
 
-            if (huberweight < weight){
-                weight = huberweight;
-            }
+            // if (huberweight < weight){
+            //     weight = huberweight;
+            // }
 
             weights.at<float>(i,i) = weight;
         }

@@ -1119,15 +1119,15 @@ public:
                         }
                     }
 
-                    // if ((remove==true) && (s <= 0.8)){
-                    //     cornerOutlierinds.push_back(i);
-                    // }
+                    if ((remove==true) && (ld2 > 0.1)){
+                        cornerOutlierinds.push_back(i);
+                    }
 
                 }
             } //comment this one
-            if ((remove==true)&& (pointSearchSqDis[4] > 0.8)){
-                cornerOutlierinds.push_back(i);
-            }
+            // else if (remove==true){
+            //     cornerOutlierinds.push_back(i);
+            // }
         }
     }
 
@@ -1186,8 +1186,8 @@ public:
                 if (planeValid) {
                     float pd2 = pa * pointSel.x + pb * pointSel.y + pc * pointSel.z + pd;
 
-                    float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel.x * pointSel.x
-                            + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
+                    float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointOri.x * pointOri.x
+                            + pointOri.y * pointOri.y + pointOri.z * pointOri.z));
 
                     if (remove == false){
                         coeff.x = s * pa;
@@ -1203,16 +1203,16 @@ public:
                         }
                     }
 
-                    // if ((remove==true) && (s <= 0.8)){
-                    //     surfOutlierinds.push_back(i);
-                    // }
+                    if ((remove==true) && (pd2 > 0.1)){
+                        surfOutlierinds.push_back(i);
+                    }
 
                 }
 
             }  // comment this one
-            if ((remove==true) && (pointSearchSqDis[4] > 0.6)){
-                surfOutlierinds.push_back(i);
-            }
+            // else if (remove==true){
+            //     surfOutlierinds.push_back(i);
+            // }
         }
     }
 

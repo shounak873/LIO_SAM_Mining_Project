@@ -177,7 +177,7 @@ public:
     float bestalpha = 2.0;
     float bestc = 1.0;
     int minalphaind = 0;
-    int mincind = 0;
+    int mincind = 4;
     int iter;
     float timing;
     float globalScale = 1.0;

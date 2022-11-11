@@ -167,23 +167,24 @@ public:
     std::vector<float> resvecCorner;
     std::vector<float> resvecSurf;
     std::vector<float> resvec;
+    int global_count;
+    bool save_resvec;
+    int timelaser = 1574795829;
 
     bool sparseFrame;
 
-    float constTable[25][9];
+    float constTable[13][9];
     float bestalpha = 2.0;
     float bestc = 1.0;
     int minalphaind = 0;
     int mincind = 0;
     int iter;
     float timing;
-    float globalScale = 0.1;
+    float globalScale = 1.0;
 
-    std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
-                            -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                            -4.0};
+    std::vector<float> alpha{2.0, 1.50, 1.0, 0.50, 0.0, -0.50, -1.0, -1.50, -2.0, -2.50, -3.0, -3.50, -4.0};
 
-    std::vector<float> c{1.0, 1.25, 1.50, 1.75, 2.0, 2.25, 2.50, 2.75, 3.0};
+    std::vector<float> c{0.05, 0.1, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0};
 
 
     mapOptimization(std::vector<std::vector<float>> content)
@@ -193,8 +194,10 @@ public:
         parameters.relinearizeSkip = 1;
         isam = new ISAM2(parameters);
         resvec.reserve(4000);
+        global_count = 0;
+        save_resvec = true;
 
-        for (int i = 0; i < 25; i++){
+        for (int i = 0; i < 13; i++){
             for (int j = 0; j < 9; j++){
                 constTable[i][j] = content[i][j];
                 // std::cout << constTable[i][j] << " ";
@@ -291,6 +294,8 @@ public:
 
         timeLaserInfoStamp = msgIn->header.stamp;
         timeLaserInfoCur = msgIn->header.stamp.toSec();
+        // std::cout.precision(10);
+        // std::cout << "cloud time " << timeLaserInfoCur << std::endl;
 
         // std::cout << "Current laser time .. "<< timeLaserInfoCur << " " << std::endl;
 
@@ -1108,7 +1113,7 @@ public:
 
                     float cornerDist = ld2; // equation 10 in LIO-SAM paper
 
-                    float s = 1 - 0.9 * fabs(ld2);
+                    // float s = 1 - 0.9 * fabs(ld2);
 
                     coeff.x = la;
                     coeff.y = lb;
@@ -1184,7 +1189,7 @@ public:
                 if (planeValid) {
                     float pd2 = pa * pointSel.x + pb * pointSel.y + pc * pointSel.z + pd;
 
-                    float s = 1 - 0.9 * fabs(pd2);
+                    // float s = 1 - 0.9 * fabs(pd2);
                     // / sqrt(sqrt(pointOri.x * pointOri.x
                     //         + pointOri.y * pointOri.y + pointOri.z * pointOri.z));
 
@@ -1231,6 +1236,11 @@ public:
             }
         }
 
+        // float max = *std::max_element(resvec.begin(), resvec.end());
+        // float min = *std::min_element(resvec.begin(), resvec.end());
+        //
+        // std::cout << "Max residual " << max <<std::endl;
+        // std::cout << "Min residual " << min << std::endl;
         // int size = resvec.size();
         // ofstream myfile ("residuals.txt");
         // if (myfile.is_open())
@@ -1913,10 +1923,10 @@ public:
 
     void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
         float totallike;
-    	std::vector<float> likevecalpha(25, 0.0);
+    	std::vector<float> likevecalpha(13, 0.0);
     	std::vector<float> likevecc(9, 0.0);
 
-        int lenalpha = 25;
+        int lenalpha = 13;
         int lenc = 9;
 
         for(int ip =0; ip < lenalpha; ip++){
@@ -1944,6 +1954,29 @@ public:
         auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
         mincind = std::distance(likevecc.begin(), smallest2);
         bestc = c[mincind];
+
+        // Save resvec for offline testing
+        if ((timeLaserInfoCur >= timelaser) && (save_resvec == true)){
+            fstream file;
+            std::string path = "/home/navlab-shounak/Desktop/resvec_5_3.txt";
+            file.open(path,ios_base::out);
+
+            for(int i=0;i<resvec.size();i++)
+            {
+                if (i == 0){
+                    file << bestalpha << endl;
+                    file << bestc << endl;
+                    file << resvec.size() << endl;
+                    file << laserCloudCornerLastDSNum << endl;
+                    file << laserCloudSurfLastDSNum << endl;
+                }
+                file<<resvec[i]<<endl;
+            }
+
+            file.close();
+            save_resvec = false;
+        }
+        global_count += 1;
     }
 };
 
@@ -1954,7 +1987,7 @@ int main(int argc, char** argv)
 
     // float constTable[41][21];
     // const char* in
-    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/table.txt";
+    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablelio.txt";
 
     // srand (static_cast <unsigned> (time(0)));
 

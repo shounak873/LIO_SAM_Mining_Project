@@ -1420,7 +1420,7 @@ public:
         resvec.clear();
         bool converged = false;
         minalphaind = 0;
-        mincind = 0;
+        mincind = 4;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
         {

@@ -1178,8 +1178,7 @@ public:
                     coeff.z = pc;
                     coeff.intensity = pd2;
 
-                    float surfDist = pd2 / sqrt(sqrt(pointSel.x * pointSel.x
-                            + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
+                    float surfDist = pd2;
 
                     // if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;

@@ -169,7 +169,7 @@ public:
     std::vector<float> resvec;
     bool sparseFrame;
 
-    float constTable[25][9];
+    float constTable[13][9];
     float bestalpha = 2.0;
     float bestc = 1.0;
     int minalphaind = 0;
@@ -177,10 +177,7 @@ public:
     int iter;
     float timing;
 
-    std::vector<float> alpha{2.0, 1.75, 1.50, 1.25, 1.0, 0.75, 0.50, 0.25, 0.0, -0.25, -0.50, -0.75,
-                            -1.0, -1.25, -1.50, -1.75, -2.0, -2.25, -2.50, -2.75, -3.0, -3.25, -3.50, -3.75,
-                            -4.0};
-
+    std::vector<float> alpha{2.0, 1.50, 1.0, 0.50, 0.0, -0.50, -1.0, -1.50, -2.0, -2.50, -3.0, -3.50, -4.0};
 
     std::vector<float> c{1.0};
 
@@ -192,7 +189,7 @@ public:
         isam = new ISAM2(parameters);
         resvec.reserve(4000);
 
-        for (int i = 0; i < 25; i++){
+        for (int i = 0; i < 13; i++){
             for (int j = 0; j < 9; j++){
                 constTable[i][j] = content[i][j];
                 // std::cout << constTable[i][j] << " ";
@@ -1101,10 +1098,10 @@ public:
 
                     float s = 1 - 0.9 * fabs(ld2);
 
-                    coeff.x = s * la;
-                    coeff.y = s * lb;
-                    coeff.z = s * lc;
-                    coeff.intensity = s * ld2;
+                    coeff.x = la;
+                    coeff.y = lb;
+                    coeff.z = lc;
+                    coeff.intensity = ld2;
 
                     // if (s > 0.1) {
                         // std::cout << " s is greater than 0.1 " << std::endl;
@@ -1176,10 +1173,10 @@ public:
                     float s = 1 - 0.9 * fabs(pd2) / sqrt(sqrt(pointSel.x * pointSel.x
                             + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
 
-                    coeff.x = s * pa;
-                    coeff.y = s * pb;
-                    coeff.z = s * pc;
-                    coeff.intensity = s * pd2;
+                    coeff.x = pa;
+                    coeff.y = pb;
+                    coeff.z = pc;
+                    coeff.intensity = pd2;
 
                     float surfDist = pd2 / sqrt(sqrt(pointSel.x * pointSel.x
                             + pointSel.y * pointSel.y + pointSel.z * pointSel.z));
@@ -1872,10 +1869,10 @@ public:
 
     void selectBest(std::vector<float>& resvec, std::vector<float>& alpha, std::vector<float> &c){
         float totallike;
-    	std::vector<float> likevecalpha(25, 0.0);
+    	std::vector<float> likevecalpha(13, 0.0);
     	std::vector<float> likevecc(1, 0.0);
 
-        int lenalpha = 25;
+        int lenalpha = 13;
 
         for(int ip =0; ip < lenalpha; ip++){
             totallike = 0.0;
@@ -1900,7 +1897,7 @@ int main(int argc, char** argv)
 
     // float constTable[41][21];
     // const char* in
-    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/table.txt";
+    string fname = "/home/navlab-shounak/catkin_ws/src/LIO_SAM_Mining_Project/LIO-SAM/src/tablelio.txt";
 
     // srand (static_cast <unsigned> (time(0)));
 

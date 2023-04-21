@@ -176,11 +176,11 @@ public:
     float constTable[13][9];
     float bestalpha = 2.0;
     float bestc = 1.0;
-    int minalphaind = 0;
+    int minalphaind = 1;
     int mincind = 4;
     int iter;
     float timing;
-    float globalScale = 1.0;
+    float globalScale = 0.1;
 
     std::vector<float> alpha{2.0, 1.50, 1.0, 0.50, 0.0, -0.50, -1.0, -1.50, -2.0, -2.50, -3.0, -3.50, -4.0};
 
@@ -1126,7 +1126,7 @@ public:
                         coeffSelCornerVec[i] = coeff;
                         laserCloudOriCornerFlag[i] = true;
                         // resvec.push_back(cornerDist);
-                        resvecCorner[i] = cornerDist;
+                        resvecCorner[i] = cornerDist/globalScale;
                         // resvecCorner[i] = pointSearchSqDis[0]/globalScale;
                     // }
                 }
@@ -1208,7 +1208,7 @@ public:
                         coeffSelSurfVec[i] = coeff;
                         laserCloudOriSurfFlag[i] = true;
                         // resvec.push_back(surfDist);
-                        resvecSurf[i] = surfDist;
+                        resvecSurf[i] = surfDist/globalScale;
                         // resvecSurf[i] = pointSearchSqDis[0]/globalScale;
                     // }
                 }
@@ -1419,7 +1419,7 @@ public:
         // std::fill(resvecSurf.begin(), resvecSurf.end(), 0.0);
         resvec.clear();
         bool converged = false;
-        minalphaind = 0;
+        minalphaind = 1;
         mincind = 4;
 
         if (laserCloudCornerLastDSNum > edgeFeatureMinValidNum && laserCloudSurfLastDSNum > surfFeatureMinValidNum)
@@ -1441,7 +1441,7 @@ public:
 
                     combineOptimizationCoeffs();
 
-                    if (iterCount % 5 == 0){
+                    if (iterCount % 5 == 0 && iterCount != 0){
                         selectBest(resvec, alpha, c);
                     }
 
@@ -1942,18 +1942,18 @@ public:
         minalphaind = std::distance(likevecalpha.begin(), smallest);
         bestalpha = alpha[minalphaind];
 
-        for(int ip2 =0; ip2 < lenc; ip2++){
-            totallike = 0.0;
-                for(auto it2 : resvec){
-                    totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
-                }
-
-            likevecc[ip2] = totallike;
-        }
-
-        auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
-        mincind = std::distance(likevecc.begin(), smallest2);
-        bestc = c[mincind];
+        // for(int ip2 =0; ip2 < lenc; ip2++){
+        //     totallike = 0.0;
+        //         for(auto it2 : resvec){
+        //             totallike += -log(exp(-robustcost(it2,c[ip2], alpha[minalphaind]))/constTable[minalphaind][ip2]);
+        //         }
+        //
+        //     likevecc[ip2] = totallike;
+        // }
+        //
+        // auto smallest2 = std::min_element( likevecc.begin(), likevecc.end());
+        // mincind = std::distance(likevecc.begin(), smallest2);
+        // bestc = c[mincind];
 
         // Save resvec for offline testing
         if ((timeLaserInfoCur >= timelaser) && (save_resvec == true)){
